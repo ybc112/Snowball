@@ -1,0 +1,12 @@
+{
+  "network": "bsc",
+  "chainId": 56,
+  "launchpad": "0x2058C08351960B5e040108f3754559F5Ce4096aC",
+  "deployer": "0xB488AcD11351ce8CD516e87EbE1782D73699F170",
+  "feeReceiver": "0xdE24f90b7802E32982E1af679449bA7FD6c3501D",
+  "createFee": "5000000000000000",
+  "defaultRewardToken": "0x55d398326f99059fF775485246999027B3197955",
+  "deploymentTx": "0x3dcccdbd6448d7a9b9a1d075c85184af233b05077cb570944d94fe70bf829aff",
+  "blockNumber": 105288642,
+  "bscScan": "https://bscscan.com/address/0x2058C08351960B5e040108f3754559F5Ce4096aC#code"
+}
