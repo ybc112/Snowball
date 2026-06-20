@@ -155,11 +155,18 @@
               <span>Token 合约</span>
               <input name="token" data-token-address type="text" placeholder="创建成功后会自动填入" />
             </label>
+            <div class="action-row wide inline-actions">
+              <button class="secondary-button" type="button" data-read-token>读取配置</button>
+            </div>
 
             <div class="info-grid wide" data-token-info>
               <div><span>名称</span><strong>--</strong></div>
               <div><span>总量</span><strong>--</strong></div>
-              <div><span>交易</span><strong>--</strong></div>
+              <div class="trade-status-card">
+                <span>交易</span>
+                <strong>--</strong>
+                <button class="danger-button compact-button" type="button" data-open-trading>手动开盘</button>
+              </div>
               <div><span>Pair</span><strong>--</strong></div>
             </div>
 
@@ -171,6 +178,12 @@
               <span>空投裂变数量</span>
               <input name="airdropCount" type="number" min="0" max="10" value="3" />
             </label>
+            <div class="action-row">
+              <button class="secondary-button" type="button" data-save-hidden>保存营销地址</button>
+            </div>
+            <div class="action-row">
+              <button class="secondary-button" type="button" data-save-airdrop>保存空投</button>
+            </div>
 
             <div class="fee-panel wide">
               <div class="fee-panel-title">
@@ -193,6 +206,9 @@
                 <label><span>分红 %</span><input name="sellDividendTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
                 <label><span>销毁 %</span><input name="sellBurnTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
               </div>
+              <div class="action-row embedded-actions">
+                <button class="secondary-button" type="button" data-save-tax>保存税收</button>
+              </div>
             </div>
 
             <div class="fee-grid wide">
@@ -201,11 +217,19 @@
               <label><span>处理营销数量</span><input name="processHidden" type="text" inputmode="numeric" value="0" /></label>
               <label><span>处理回流/分红</span><input name="processOther" type="text" inputmode="numeric" value="0,0" /></label>
             </div>
+            <div class="action-row wide inline-actions">
+              <button class="secondary-button" type="button" data-save-auto-process>保存自动处理</button>
+              <button class="secondary-button" type="button" data-process-fees>处理税池</button>
+            </div>
 
             <label class="field wide">
               <span>普通白名单</span>
               <textarea name="ordinaryWhitelist" rows="3" placeholder="每行一个地址"></textarea>
             </label>
+            <div class="action-row wide inline-actions">
+              <button class="secondary-button" type="button" data-add-white>加白名单</button>
+              <button class="secondary-button" type="button" data-remove-white>移除白名单</button>
+            </div>
 
             <label class="switch-card wide">
               <input name="limitMode" type="checkbox" />
@@ -216,16 +240,7 @@
               <span>限购名单</span>
               <textarea name="limitList" rows="3" placeholder="格式：地址,额度"></textarea>
             </label>
-
             <div class="action-row wide">
-              <button class="secondary-button" type="button" data-read-token>读取配置</button>
-              <button class="secondary-button" type="button" data-save-hidden>保存营销地址</button>
-              <button class="secondary-button" type="button" data-save-tax>保存税收</button>
-              <button class="secondary-button" type="button" data-save-airdrop>保存空投</button>
-              <button class="secondary-button" type="button" data-save-auto-process>保存自动处理</button>
-              <button class="secondary-button" type="button" data-process-fees>处理税池</button>
-              <button class="secondary-button" type="button" data-add-white>加白名单</button>
-              <button class="secondary-button" type="button" data-remove-white>移除白名单</button>
               <button class="secondary-button" type="button" data-save-limit>保存限购</button>
             </div>
           </form>

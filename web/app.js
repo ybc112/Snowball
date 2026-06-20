@@ -396,6 +396,11 @@ async function readTokenInfo() {
     info[1].textContent = totalSupply.toString();
     info[2].textContent = tradingOpen ? "已开盘" : "未开盘";
     info[3].textContent = pair === ZERO ? "未创建" : pair;
+    const manageOpenButton = $("[data-manage-form] [data-open-trading]");
+    if (manageOpenButton) {
+      manageOpenButton.disabled = tradingOpen;
+      manageOpenButton.textContent = tradingOpen ? "已开盘" : "手动开盘";
+    }
 
     const form = $("[data-manage-form]");
     form.elements.hiddenReceiver.value = hiddenReceiver;
@@ -627,13 +632,18 @@ async function addLiquidity(event) {
   }
 }
 
-async function openTrading() {
+async function openTrading(event) {
   try {
-    const token = await getTokenFromForm("[data-liquidity-form]");
+    const form = event?.currentTarget?.closest("form");
+    const formSelector = form?.matches("[data-manage-form]") ? "[data-manage-form]" : "[data-liquidity-form]";
+    const token = await getTokenFromForm(formSelector);
     setStatus("正在手动开盘，请确认钱包弹窗...");
     const tx = await token.openTrading();
     await tx.wait();
     setStatus("交易已开启。", "success");
+    if (formSelector === "[data-manage-form]") {
+      await readTokenInfo();
+    }
   } catch (error) {
     console.error(error);
     setStatus(prettyError(error, "开盘失败"), "error");
@@ -865,7 +875,7 @@ function bindEvents() {
   $("[data-save-limit]").addEventListener("click", saveLimitList);
   $("[data-query-pair]").addEventListener("click", queryPair);
   $("[data-create-pair]").addEventListener("click", createOrMarkPair);
-  $("[data-open-trading]").addEventListener("click", openTrading);
+  $$("[data-open-trading]").forEach((button) => button.addEventListener("click", openTrading));
   $("[data-refresh-mint-required]").addEventListener("click", () => refreshMintSaleRequired().catch((error) => setStatus(prettyError(error, "刷新失败"), "error")));
   $("[data-approve-mint-sale-token]").addEventListener("click", approveMintSaleToken);
   $("[data-read-mint-sale]").addEventListener("click", readMintSale);

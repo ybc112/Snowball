@@ -544,6 +544,40 @@ textarea:focus {
   padding-top: 4px;
 }
 
+.inline-actions {
+  margin-top: -8px;
+  padding-bottom: 6px;
+}
+
+.embedded-actions {
+  padding-top: 0;
+}
+
+.trade-status-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.trade-status-card span,
+.trade-status-card strong {
+  grid-column: 1;
+}
+
+.trade-status-card .compact-button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  width: auto;
+  min-height: 34px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.trade-status-card .compact-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .action-row span {
   color: var(--muted);
   background: var(--ice);
@@ -648,5 +682,9 @@ textarea:focus {
   .ghost-button,
   .danger-button {
     width: 100%;
+  }
+
+  .trade-status-card .compact-button {
+    width: auto;
   }
 }
