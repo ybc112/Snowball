@@ -267,6 +267,12 @@ textarea {
   line-height: 1.5;
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: rgba(44, 59, 82, 0.42);
+  opacity: 1;
+}
+
 select:focus,
 input:focus,
 textarea:focus {
