@@ -1,0 +1,46 @@
+{
+  "project": "多零直发发射台",
+  "contract": "ShaZeroProtocol",
+  "version": "v3-auto-marketing-bnb-auto-liquidity-dividend",
+  "network": "bsc",
+  "chainId": 56,
+  "address": "0xAE492868D8024FdD05732fa52c01e6A59207539A",
+  "transactionHash": "0x2cbb374c9da9b2dbe32b7c327d712ab7745553271e87c3d00f90b054d853d1df",
+  "blockNumber": 105109861,
+  "transferHash": "0xba94a0bde0bed5c894145844e361e413b85d0c77a20a1d30dc4720abdba01fbe",
+  "deployer": "0x01758DD16f47452A5165B1B786F84e988a56bEE9",
+  "name": "杀0协议",
+  "symbol": "SHA0",
+  "decimals": 0,
+  "totalSupply": "21000000000000000000000000000000",
+  "marketingWallet": "0xdE24f90b7802E32982E1af679449bA7FD6c3501D",
+  "rewardToken": "0x55d398326f99059fF775485246999027B3197955",
+  "router": "0x10ED43C718714eb63d5aA57B78B54704E256024E",
+  "dead": "0x000000000000000000000000000000000000dEaD",
+  "tax": {
+    "totalBp": 300,
+    "marketingBp": 60,
+    "fakeBurnToDeadBp": 50,
+    "liquidityBp": 50,
+    "dividendBp": 140
+  },
+  "autoProcess": {
+    "enabled": true,
+    "threshold": "2100000000000000000000000",
+    "maxAmount": "21000000000000000000000000",
+    "marketing": "accumulates SHA0 then swaps to BNB and sends to marketingWallet",
+    "liquidity": "swaps half to BNB, adds LP, sends LP to dead address",
+    "dividend": "swaps to rewardToken and distributes to holders"
+  },
+  "airdrop": {
+    "count": 3,
+    "amount": 1,
+    "initialReserve": "3000000"
+  },
+  "verified": {
+    "status": "passed",
+    "guid": "yvx9dkwgwf1qj7psqgnm6si2vptzgnfyksgmxewsa7g8v21mv1"
+  },
+  "tradingOpen": false,
+  "deployedAt": "2026-06-19"
+}

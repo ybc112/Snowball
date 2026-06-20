@@ -1,0 +1,36 @@
+{
+  "name": "multi-zero-launch-token",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Direct issue zero-decimal BSC token based on the verified TokenZero contract.",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "export:web": "node scripts/export-web-artifact.js",
+    "deploy:bsc": "hardhat run scripts/deploy-tokenzero.js --network bsc",
+    "deploy:testnet": "hardhat run scripts/deploy-tokenzero.js --network bscTestnet",
+    "deploy:sha0:bsc": "hardhat run scripts/deploy-shazero.js --network bsc",
+    "deploy:sha0:vanity:bsc": "node scripts/deploy-shazero-vanity.js",
+    "deploy:sha0:testnet": "hardhat run scripts/deploy-shazero.js --network bscTestnet",
+    "deploy:snowball:bsc": "hardhat run scripts/deploy-snowball-launchpad.js --network bsc",
+    "deploy:snowball:testnet": "hardhat run scripts/deploy-snowball-launchpad.js --network bscTestnet",
+    "deploy:mint-sale:bsc": "hardhat run scripts/deploy-mint-add-sale-factory.js --network bsc",
+    "deploy:mint-sale:testnet": "hardhat run scripts/deploy-mint-add-sale-factory.js --network bscTestnet",
+    "verify:snowball:token:bsc": "hardhat run scripts/verify-snowball-token.js --network bsc",
+    "verify:snowball:token:testnet": "hardhat run scripts/verify-snowball-token.js --network bscTestnet",
+    "watch:auto-verify:bsc": "hardhat run scripts/watch-snowball-auto-verify.js --network bsc",
+    "watch:auto-verify:testnet": "hardhat run scripts/watch-snowball-auto-verify.js --network bscTestnet",
+    "lp:bsc": "hardhat run scripts/config-and-add-lp.js --network bsc",
+    "lp:testnet": "hardhat run scripts/config-and-add-lp.js --network bscTestnet"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "@nomicfoundation/hardhat-verify": "^2.1.3",
+    "ethers": "^6.13.5",
+    "hardhat": "^2.26.3"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2",
+    "dotenv": "^16.4.7"
+  }
+}

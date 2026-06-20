@@ -1,0 +1,33 @@
+{
+  "project": "多零直发发射台",
+  "contract": "ShaZeroProtocol",
+  "network": "bsc",
+  "chainId": 56,
+  "address": "0x7bBA940515760BdF3217AC5fb917B85C7Ef2da18",
+  "transactionHash": "0x301a01bc608514966cd67772d7e0f34cc9c68fc2fdcffe5ab7416ec03b814e6c",
+  "blockNumber": 105096535,
+  "deployer": "0x01758DD16f47452A5165B1B786F84e988a56bEE9",
+  "name": "杀0协议",
+  "symbol": "SHA0",
+  "decimals": 0,
+  "totalSupply": "21000000000000000000000000000000",
+  "marketingWallet": "0xdE24f90b7802E32982E1af679449bA7FD6c3501D",
+  "rewardToken": "0x55d398326f99059fF775485246999027B3197955",
+  "router": "0x10ED43C718714eb63d5aA57B78B54704E256024E",
+  "tax": {
+    "totalBp": 300,
+    "marketingBp": 60,
+    "burnBp": 50,
+    "liquidityBp": 50,
+    "dividendBp": 140
+  },
+  "airdropCount": 3,
+  "tradingOpen": false,
+  "limitModeEnabled": false,
+  "verification": {
+    "submitted": true,
+    "status": "failed",
+    "reason": "BscScan/Etherscan V2 reported unsupported solc version v0.8.28+commit.7893614a."
+  },
+  "deployedAt": "2026-06-19T14:31:00+08:00"
+}
