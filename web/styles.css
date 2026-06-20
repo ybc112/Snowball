@@ -327,6 +327,7 @@ textarea:focus {
 .action-row.wide,
 .info-grid.wide,
 .fee-grid.wide,
+.trade-tax-panel.wide,
 .switch-card.wide {
   grid-column: 1 / -1;
 }
@@ -339,9 +340,10 @@ textarea:focus {
 }
 
 .switch-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: 42px minmax(0, max-content) minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
+  gap: 8px 10px;
   min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -382,6 +384,16 @@ textarea:focus {
   transform: translateX(20px);
 }
 
+.switch-card input:disabled {
+  opacity: 0.7;
+}
+
+.switch-card small {
+  color: rgba(44, 59, 82, 0.56);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .fee-grid,
 .info-grid {
   display: grid;
@@ -397,6 +409,50 @@ textarea:focus {
   border-radius: 6px;
   background: var(--panel-soft);
   padding: 12px;
+}
+
+.trade-tax-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #cfe7f5;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(241, 250, 255, 0.92), rgba(255, 255, 255, 0.98));
+  padding: 14px;
+}
+
+.tax-row-title {
+  color: #34445c;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.tax-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tax-row label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.tax-row span {
+  color: #34445c;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.tax-row input {
+  text-align: center;
+}
+
+.tax-row-note {
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .action-row {
@@ -464,7 +520,8 @@ textarea:focus {
 
   .metric-grid,
   .fee-grid,
-  .info-grid {
+  .info-grid,
+  .tax-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -493,8 +550,17 @@ textarea:focus {
   .metric-grid,
   .fee-grid,
   .info-grid,
+  .tax-row,
   .section-menu {
     grid-template-columns: 1fr;
+  }
+
+  .switch-card {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .switch-card small {
+    grid-column: 2;
   }
 
   .wallet-button,

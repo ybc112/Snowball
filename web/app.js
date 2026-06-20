@@ -98,6 +98,35 @@ function bpsToPercent(value) {
   return (Number(value) / 100).toString();
 }
 
+function parseTradeTaxRow(form, prefix, label) {
+  const liquidity = parseBps(form.elements[`${prefix}LiquidityTax`].value, `${label}流动性`);
+  const marketing = parseBps(form.elements[`${prefix}MarketingTax`].value, `${label}营销`);
+  const dividend = parseBps(form.elements[`${prefix}DividendTax`].value, `${label}分红`);
+  const burn = parseBps(form.elements[`${prefix}BurnTax`].value, `${label}销毁`);
+  const total = liquidity + marketing + dividend + burn;
+  if (total > 2500) throw new Error(`${label}手续费总比例不能超过 25%`);
+  return { liquidity, marketing, dividend, burn, total };
+}
+
+function parseCreateTaxConfig(form) {
+  const buy = parseTradeTaxRow(form, "buy", "买入");
+  const sell = parseTradeTaxRow(form, "sell", "卖出");
+  if (
+    buy.liquidity !== sell.liquidity ||
+    buy.marketing !== sell.marketing ||
+    buy.dividend !== sell.dividend ||
+    buy.burn !== sell.burn
+  ) {
+    throw new Error("当前模板买入和卖出手续费需要保持一致");
+  }
+  return {
+    hidden: buy.marketing,
+    burn: buy.burn,
+    liquidity: buy.liquidity,
+    dividend: buy.dividend
+  };
+}
+
 function parseAddressList(value) {
   const raw = String(value || "").trim();
   if (!raw) return [];
@@ -179,9 +208,6 @@ async function connectWallet() {
   signer = await provider.getSigner();
   account = await signer.getAddress();
   $("[data-connect-wallet]").textContent = shortAddress(account);
-
-  const hiddenInput = $("[data-create-form] [name='hiddenReceiver']");
-  if (hiddenInput && !hiddenInput.value) hiddenInput.value = account;
 
   setStatus(`钱包已连接：${shortAddress(account)}`, "success");
   await refreshCreateFee().catch(() => {});
@@ -306,6 +332,8 @@ async function createToken(event) {
     const rewardToken = optionalAddress(form.elements.rewardToken.value, USDT);
     const ordinaryWhitelist = parseAddressList(form.elements.ordinaryWhitelist.value);
     const { accounts: limitAccounts, quotas: limitQuotas } = parseLimitList(form.elements.limitList.value);
+    const shouldConfigureTax = form.elements.configureTaxAfterCreate.checked;
+    const createTaxConfig = shouldConfigureTax ? parseCreateTaxConfig(form) : null;
     const createFee = await launchpad.createFee();
 
     const params = {
@@ -342,6 +370,25 @@ async function createToken(event) {
     }
 
     syncTokenInputs(tokenAddress);
+    if (createTaxConfig) {
+      try {
+        setStatus("Token 已创建，正在配置手续费，请确认第二笔钱包弹窗...");
+        const token = new ethers.Contract(tokenAddress, TOKEN_ABI, signer);
+        const taxTx = await token.setTaxConfig(
+          createTaxConfig.hidden,
+          createTaxConfig.burn,
+          createTaxConfig.liquidity,
+          createTaxConfig.dividend
+        );
+        await taxTx.wait();
+      } catch (error) {
+        console.error(error);
+        setStatus(`Token 已创建：${tokenAddress}，但手续费未保存：${prettyError(error)}。可到管理页补保存。`, "error");
+        switchPage("manage");
+        return;
+      }
+    }
+
     setStatus(`创建成功：${tokenAddress}。下一步加池、标记 Pair，再手动开盘。`, "success");
     switchPage("liquidity");
   } catch (error) {
@@ -395,11 +442,11 @@ async function saveHiddenReceiver() {
   try {
     const form = $("[data-manage-form]");
     const token = await getTokenFromForm("[data-manage-form]");
-    const wallet = requireAddress(form.elements.hiddenReceiver.value, "隐藏收款");
-    setStatus("正在保存隐藏收款地址，请确认钱包弹窗...");
+    const wallet = requireAddress(form.elements.hiddenReceiver.value, "营销");
+    setStatus("正在保存营销地址，请确认钱包弹窗...");
     const tx = await token.setHiddenFeeReceiver(wallet);
     await tx.wait();
-    setStatus("隐藏收款地址已保存。", "success");
+    setStatus("营销地址已保存。", "success");
   } catch (error) {
     console.error(error);
     setStatus(prettyError(error, "保存失败"), "error");
@@ -410,7 +457,7 @@ async function saveTaxConfig() {
   try {
     const form = $("[data-manage-form]");
     const token = await getTokenFromForm("[data-manage-form]");
-    const hidden = parseBps(form.elements.hiddenTax.value, "隐藏税");
+    const hidden = parseBps(form.elements.hiddenTax.value, "营销");
     const burn = parseBps(form.elements.burnTax.value, "销毁");
     const liquidity = parseBps(form.elements.liquidityTax.value, "回流");
     const dividend = parseBps(form.elements.dividendTax.value, "分红");
@@ -462,7 +509,7 @@ async function processFees() {
   try {
     const form = $("[data-manage-form]");
     const token = await getTokenFromForm("[data-manage-form]");
-    const hidden = parseRawAmount(form.elements.processHidden.value, "处理隐藏数量");
+    const hidden = parseRawAmount(form.elements.processHidden.value, "处理营销数量");
     const [liquidityRaw = "0", dividendRaw = "0"] = String(form.elements.processOther.value || "0,0").split(/[,\s]+/);
     const liquidity = parseRawAmount(liquidityRaw, "处理回流数量");
     const dividend = parseRawAmount(dividendRaw, "处理分红数量");

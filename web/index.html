@@ -22,7 +22,7 @@
 
       <section class="hero-band">
         <div class="hero-copy">
-          <span class="eyebrow">默认 BNB 底池 / 15% 隐藏税 / 0 精度</span>
+          <span class="eyebrow">默认 BNB 底池 / 15% 营销配置 / 0 精度</span>
           <h1>创建多零 Token</h1>
           <p>填写名称、符号和总量即可创建，创建者钱包自动拥有管理权限；后续由创建者完成加池、白名单、限购名单和手动开盘。</p>
         </div>
@@ -71,13 +71,50 @@
               <input name="supply" type="text" inputmode="numeric" placeholder="例如 21000000000000000000000000000000" />
             </label>
             <label class="field">
-              <span>隐藏收款地址</span>
+              <span>营销地址</span>
               <input name="hiddenReceiver" type="text" placeholder="不填则默认创建者钱包" />
             </label>
             <label class="field">
               <span>分红币</span>
               <input name="rewardToken" type="text" placeholder="不填则默认 BSC USDT" />
             </label>
+
+            <label class="switch-card">
+              <input name="manualOpen" type="checkbox" checked disabled />
+              <span>手动开启交易</span>
+              <small>建议先加池，再手动开盘</small>
+            </label>
+            <label class="switch-card">
+              <input name="configureTaxAfterCreate" type="checkbox" checked />
+              <span>创建后配置手续费</span>
+              <small>会弹第二笔钱包确认</small>
+            </label>
+
+            <label class="field wide">
+              <span>交易平台</span>
+              <select name="tradePlatform">
+                <option value="pancake-wbnb">Pancake WBNB</option>
+              </select>
+            </label>
+
+            <div class="trade-tax-panel wide">
+              <div class="tax-row-title">买入手续费设置</div>
+              <div class="tax-row">
+                <label><span>流动性</span><input name="buyLiquidityTax" type="number" min="0" max="25" step="0.01" value="0" /></label>
+                <label><span>营销</span><input name="buyMarketingTax" type="number" min="0" max="25" step="0.01" value="15" /></label>
+                <label><span>分红</span><input name="buyDividendTax" type="number" min="0" max="25" step="0.01" value="0" /></label>
+                <label><span>销毁</span><input name="buyBurnTax" type="number" min="0" max="25" step="0.01" value="0" /></label>
+              </div>
+              <div class="tax-row-note">总比例不可大于 25%，当前模板买入和卖出使用同一套链上比例。</div>
+
+              <div class="tax-row-title">卖出手续费设置</div>
+              <div class="tax-row">
+                <label><span>流动性</span><input name="sellLiquidityTax" type="number" min="0" max="25" step="0.01" value="0" /></label>
+                <label><span>营销</span><input name="sellMarketingTax" type="number" min="0" max="25" step="0.01" value="15" /></label>
+                <label><span>分红</span><input name="sellDividendTax" type="number" min="0" max="25" step="0.01" value="0" /></label>
+                <label><span>销毁</span><input name="sellBurnTax" type="number" min="0" max="25" step="0.01" value="0" /></label>
+              </div>
+            </div>
 
             <label class="field wide">
               <span>普通白名单</span>
@@ -127,7 +164,7 @@
             </div>
 
             <label class="field">
-              <span>隐藏收款地址</span>
+              <span>营销地址</span>
               <input name="hiddenReceiver" type="text" />
             </label>
             <label class="field">
@@ -136,7 +173,7 @@
             </label>
 
             <div class="fee-grid wide">
-              <label><span>隐藏税 %</span><input name="hiddenTax" type="number" min="0" max="25" step="0.01" value="15" /></label>
+              <label><span>营销 %</span><input name="hiddenTax" type="number" min="0" max="25" step="0.01" value="15" /></label>
               <label><span>销毁 %</span><input name="burnTax" type="number" min="0" max="25" step="0.01" value="0" /></label>
               <label><span>回流 %</span><input name="liquidityTax" type="number" min="0" max="25" step="0.01" value="0" /></label>
               <label><span>分红 %</span><input name="dividendTax" type="number" min="0" max="25" step="0.01" value="0" /></label>
@@ -145,7 +182,7 @@
             <div class="fee-grid wide">
               <label><span>自动处理阈值</span><input name="autoThreshold" type="text" inputmode="numeric" value="1000" /></label>
               <label><span>单次最大处理</span><input name="autoMax" type="text" inputmode="numeric" value="1000" /></label>
-              <label><span>处理隐藏数量</span><input name="processHidden" type="text" inputmode="numeric" value="0" /></label>
+              <label><span>处理营销数量</span><input name="processHidden" type="text" inputmode="numeric" value="0" /></label>
               <label><span>处理回流/分红</span><input name="processOther" type="text" inputmode="numeric" value="0,0" /></label>
             </div>
 
@@ -166,7 +203,7 @@
 
             <div class="action-row wide">
               <button class="secondary-button" type="button" data-read-token>读取配置</button>
-              <button class="secondary-button" type="button" data-save-hidden>保存收款地址</button>
+              <button class="secondary-button" type="button" data-save-hidden>保存营销地址</button>
               <button class="secondary-button" type="button" data-save-tax>保存税收</button>
               <button class="secondary-button" type="button" data-save-airdrop>保存空投</button>
               <button class="secondary-button" type="button" data-save-auto-process>保存自动处理</button>
