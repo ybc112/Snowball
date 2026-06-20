@@ -13,7 +13,7 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint256 public constant FEE_DENOMINATOR = 10_000;
-    uint256 public constant MAX_TOTAL_TAX_BP = 2_500;
+    uint256 public constant MAX_TOTAL_TAX_BP = 1_500;
     uint256 public constant MAGNITUDE = 2 ** 128;
     uint256 public constant DEFAULT_AIRDROP_ROUNDS = 1_000_000;
 

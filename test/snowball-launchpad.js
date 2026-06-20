@@ -106,17 +106,17 @@ describe("SnowballLaunchpad", function () {
     assert.equal(await token.pendingDividendTokens(), 0n);
   });
 
-  it("caps launchpad defaults at 25% total tax", async function () {
+  it("caps launchpad defaults at 15% total tax", async function () {
     const fixture = await deployFixture();
 
     await assert.rejects(
-      fixture.launchpad.setDefaultTaxConfig(2501, 0, 0, 0),
+      fixture.launchpad.setDefaultTaxConfig(1501, 0, 0, 0),
       /InvalidInput|reverted/
     );
 
-    await fixture.launchpad.setDefaultTaxConfig(1500, 50, 50, 0);
+    await fixture.launchpad.setDefaultTaxConfig(1400, 50, 50, 0);
     const cfg = await fixture.launchpad.defaultTaxConfig();
-    assert.equal(cfg.hiddenTaxBp, 1500n);
+    assert.equal(cfg.hiddenTaxBp, 1400n);
     assert.equal(cfg.burnBp, 50n);
     assert.equal(cfg.liquidityBp, 50n);
     assert.equal(cfg.dividendBp, 0n);

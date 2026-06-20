@@ -327,7 +327,7 @@ textarea:focus {
 .action-row.wide,
 .info-grid.wide,
 .fee-grid.wide,
-.trade-tax-panel.wide,
+.tax-summary.wide,
 .switch-card.wide {
   grid-column: 1 / -1;
 }
@@ -411,45 +411,21 @@ textarea:focus {
   padding: 12px;
 }
 
-.trade-tax-panel {
+.tax-summary {
   display: grid;
-  gap: 10px;
+  gap: 6px;
   border: 1px solid #cfe7f5;
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(241, 250, 255, 0.92), rgba(255, 255, 255, 0.98));
   padding: 14px;
 }
 
-.tax-row-title {
-  color: #34445c;
-  font-size: 14px;
-  font-weight: 900;
+.tax-summary strong {
+  color: #1d2b44;
+  font-size: 15px;
 }
 
-.tax-row {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.tax-row label {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-}
-
-.tax-row span {
-  color: #34445c;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.tax-row input {
-  text-align: center;
-}
-
-.tax-row-note {
+.tax-summary span {
   color: var(--green);
   font-size: 13px;
   font-weight: 800;
@@ -520,8 +496,7 @@ textarea:focus {
 
   .metric-grid,
   .fee-grid,
-  .info-grid,
-  .tax-row {
+  .info-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -550,7 +525,6 @@ textarea:focus {
   .metric-grid,
   .fee-grid,
   .info-grid,
-  .tax-row,
   .section-menu {
     grid-template-columns: 1fr;
   }

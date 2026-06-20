@@ -83,7 +83,7 @@ function parsePositiveRawAmount(value, label) {
 function parseBps(value, label) {
   const num = Number(String(value || "0").trim());
   if (!Number.isFinite(num) || num < 0) throw new Error(`${label}不能小于 0`);
-  if (num > 25) throw new Error(`${label}不能大于 25%`);
+  if (num > 15) throw new Error(`${label}不能大于 15%`);
   return Math.round(num * 100);
 }
 
@@ -96,35 +96,6 @@ function parseRatioBps(value, label) {
 
 function bpsToPercent(value) {
   return (Number(value) / 100).toString();
-}
-
-function parseTradeTaxRow(form, prefix, label) {
-  const liquidity = parseBps(form.elements[`${prefix}LiquidityTax`].value, `${label}流动性`);
-  const marketing = parseBps(form.elements[`${prefix}MarketingTax`].value, `${label}营销`);
-  const dividend = parseBps(form.elements[`${prefix}DividendTax`].value, `${label}分红`);
-  const burn = parseBps(form.elements[`${prefix}BurnTax`].value, `${label}销毁`);
-  const total = liquidity + marketing + dividend + burn;
-  if (total > 2500) throw new Error(`${label}手续费总比例不能超过 25%`);
-  return { liquidity, marketing, dividend, burn, total };
-}
-
-function parseCreateTaxConfig(form) {
-  const buy = parseTradeTaxRow(form, "buy", "买入");
-  const sell = parseTradeTaxRow(form, "sell", "卖出");
-  if (
-    buy.liquidity !== sell.liquidity ||
-    buy.marketing !== sell.marketing ||
-    buy.dividend !== sell.dividend ||
-    buy.burn !== sell.burn
-  ) {
-    throw new Error("当前模板买入和卖出手续费需要保持一致");
-  }
-  return {
-    hidden: buy.marketing,
-    burn: buy.burn,
-    liquidity: buy.liquidity,
-    dividend: buy.dividend
-  };
 }
 
 function parseAddressList(value) {
@@ -332,8 +303,6 @@ async function createToken(event) {
     const rewardToken = optionalAddress(form.elements.rewardToken.value, USDT);
     const ordinaryWhitelist = parseAddressList(form.elements.ordinaryWhitelist.value);
     const { accounts: limitAccounts, quotas: limitQuotas } = parseLimitList(form.elements.limitList.value);
-    const shouldConfigureTax = form.elements.configureTaxAfterCreate.checked;
-    const createTaxConfig = shouldConfigureTax ? parseCreateTaxConfig(form) : null;
     const createFee = await launchpad.createFee();
 
     const params = {
@@ -370,25 +339,6 @@ async function createToken(event) {
     }
 
     syncTokenInputs(tokenAddress);
-    if (createTaxConfig) {
-      try {
-        setStatus("Token 已创建，正在配置手续费，请确认第二笔钱包弹窗...");
-        const token = new ethers.Contract(tokenAddress, TOKEN_ABI, signer);
-        const taxTx = await token.setTaxConfig(
-          createTaxConfig.hidden,
-          createTaxConfig.burn,
-          createTaxConfig.liquidity,
-          createTaxConfig.dividend
-        );
-        await taxTx.wait();
-      } catch (error) {
-        console.error(error);
-        setStatus(`Token 已创建：${tokenAddress}，但手续费未保存：${prettyError(error)}。可到管理页补保存。`, "error");
-        switchPage("manage");
-        return;
-      }
-    }
-
     setStatus(`创建成功：${tokenAddress}。下一步加池、标记 Pair，再手动开盘。`, "success");
     switchPage("liquidity");
   } catch (error) {
@@ -461,7 +411,7 @@ async function saveTaxConfig() {
     const burn = parseBps(form.elements.burnTax.value, "销毁");
     const liquidity = parseBps(form.elements.liquidityTax.value, "回流");
     const dividend = parseBps(form.elements.dividendTax.value, "分红");
-    if (hidden + burn + liquidity + dividend > 2500) throw new Error("总税不能超过 25%");
+    if (hidden + burn + liquidity + dividend > 1500) throw new Error("总税不能超过 15%");
 
     setStatus("正在保存税收配置，请确认钱包弹窗...");
     const tx = await token.setTaxConfig(hidden, burn, liquidity, dividend);

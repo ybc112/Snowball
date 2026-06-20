@@ -7,7 +7,7 @@ import "./SnowballToken.sol";
 
 contract SnowballLaunchpad is Ownable, ReentrancyGuard {
     address public constant BSC_USDT = 0x55d398326f99059fF775485246999027B3197955;
-    uint256 public constant MAX_TOTAL_TAX_BP = 2_500;
+    uint256 public constant MAX_TOTAL_TAX_BP = 1_500;
 
     uint256 public createFee = 0.005 ether;
     address public feeReceiver;
