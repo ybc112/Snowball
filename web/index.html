@@ -35,14 +35,20 @@
 
       <section class="tool-shell">
         <div class="section-menu">
-          <label for="pageMenu">功能菜单</label>
-          <select id="pageMenu" data-page-menu>
-            <option value="create">创建 Token</option>
-            <option value="manage">管理 Token</option>
-            <option value="liquidity">加池开盘</option>
-            <option value="mint-sale">Mint 预售</option>
-            <option value="verify">开源状态</option>
-          </select>
+          <span class="section-menu-label">功能菜单</span>
+          <div class="page-menu" data-page-menu>
+            <button class="page-menu-trigger" type="button" data-page-menu-trigger aria-expanded="false">
+              <span data-page-menu-current>创建 Token</span>
+              <span class="page-menu-arrow" aria-hidden="true">⌄</span>
+            </button>
+            <div class="page-menu-list" data-page-menu-list>
+              <button type="button" data-page-menu-item data-page-target="create">创建 Token</button>
+              <button type="button" data-page-menu-item data-page-target="manage">管理 Token</button>
+              <button type="button" data-page-menu-item data-page-target="liquidity">加池开盘</button>
+              <button type="button" data-page-menu-item data-page-target="mint-sale">Mint 预售</button>
+              <button type="button" data-page-menu-item data-page-target="verify">开源状态</button>
+            </div>
+          </div>
         </div>
 
         <section class="page active" data-page="create">

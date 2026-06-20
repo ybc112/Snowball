@@ -802,12 +802,50 @@ async function buyMintSale(event) {
 function switchPage(pageName) {
   $$("[data-page]").forEach((page) => page.classList.toggle("active", page.dataset.page === pageName));
   const menu = $("[data-page-menu]");
-  if (menu) menu.value = pageName;
+  const current = $("[data-page-menu-current]");
+  const activeItem = $(`[data-page-menu-item][data-page-target="${pageName}"]`);
+
+  if (current && activeItem) current.textContent = activeItem.textContent;
+  $$("[data-page-menu-item]").forEach((item) => {
+    const active = item.dataset.pageTarget === pageName;
+    item.classList.toggle("active", active);
+    item.setAttribute("aria-current", active ? "page" : "false");
+  });
+  if (menu) menu.classList.remove("open");
+  const trigger = $("[data-page-menu-trigger]");
+  if (trigger) trigger.setAttribute("aria-expanded", "false");
+}
+
+function setPageMenuOpen(open) {
+  const menu = $("[data-page-menu]");
+  const trigger = $("[data-page-menu-trigger]");
+  if (!menu || !trigger) return;
+  menu.classList.toggle("open", open);
+  trigger.setAttribute("aria-expanded", open ? "true" : "false");
 }
 
 function bindEvents() {
   $("[data-connect-wallet]").addEventListener("click", connectWallet);
-  $("[data-page-menu]").addEventListener("change", (event) => switchPage(event.target.value));
+  $("[data-page-menu-trigger]").addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const menu = $("[data-page-menu]");
+    setPageMenuOpen(!menu.classList.contains("open"));
+  });
+  $$("[data-page-menu-item]").forEach((item) => {
+    item.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      switchPage(item.dataset.pageTarget);
+    });
+  });
+  document.addEventListener("click", (event) => {
+    const menu = $("[data-page-menu]");
+    if (menu && !menu.contains(event.target)) setPageMenuOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setPageMenuOpen(false);
+  });
   $("[data-create-form]").addEventListener("submit", createToken);
   $("[data-liquidity-form]").addEventListener("submit", addLiquidity);
   $("[data-mint-sale-form]").addEventListener("submit", createMintSale);
@@ -854,6 +892,7 @@ function boot() {
   }
 
   bindEvents();
+  switchPage("create");
   setStatus(DEFAULT_DEPLOYMENT?.launchpad ? "资源已加载，请连接钱包。" : "请先部署发射台工厂，或手动填入工厂地址。");
 }
 
