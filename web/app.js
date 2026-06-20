@@ -34,6 +34,9 @@ const ERC20_ABI = [
 let provider;
 let signer;
 let account = "";
+let lastTokenAddress = "";
+let lastPairAddress = "";
+let lastMintSaleAddress = "";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -48,6 +51,160 @@ function setStatus(message, type = "info") {
 function shortAddress(address) {
   if (!address || !ethers.isAddress(address)) return "--";
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+function getField(selector) {
+  const field = $(selector);
+  if (!field) throw new Error("没有找到对应输入框");
+  return field;
+}
+
+function setFieldValue(selector, value) {
+  const field = getField(selector);
+  field.value = value;
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+  field.dispatchEvent(new Event("change", { bubbles: true }));
+  return field;
+}
+
+function getFieldValue(selector) {
+  return String(getField(selector).value || "").trim();
+}
+
+function appendLine(selector, value) {
+  const field = getField(selector);
+  const line = String(value || "").trim();
+  if (!line) return;
+  const lines = String(field.value || "")
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!lines.includes(line)) lines.push(line);
+  field.value = lines.join("\n");
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+async function copyText(value, label = "内容") {
+  const text = String(value || "").trim();
+  if (!text || text === "--") throw new Error(`没有可复制的${label}`);
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      throw new Error("clipboard unavailable");
+    }
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+  }
+
+  setStatus(`${label}已复制。`, "success");
+}
+
+async function pasteField(selector, label = "内容") {
+  if (!navigator.clipboard?.readText) {
+    throw new Error("当前钱包浏览器不允许自动读取剪贴板，请长按输入框粘贴。");
+  }
+  const text = String(await navigator.clipboard.readText()).trim();
+  if (!text) throw new Error(`剪贴板里没有${label}`);
+  setFieldValue(selector, text);
+  setStatus(`${label}已粘贴。`, "success");
+}
+
+function openBscScanAddress(address, label = "地址") {
+  const normalized = requireAddress(address, label);
+  if (normalized === ZERO) throw new Error(`${label}还没有生成`);
+  const url = `https://bscscan.com/address/${normalized}`;
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (!opened) window.location.href = url;
+  setStatus(`已打开${label}。`, "success");
+}
+
+function getCurrentTokenAddress() {
+  const candidates = [lastTokenAddress, ...$$("[data-token-address]").map((input) => input.value)]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+  const found = candidates.find((value) => ethers.isAddress(value));
+  if (!found) throw new Error("请先填写 Token 合约地址");
+  return ethers.getAddress(found);
+}
+
+function getCurrentPairAddress() {
+  const infoPair = $$("[data-token-info] strong")[3]?.textContent || "";
+  const candidates = [lastPairAddress, infoPair]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+  const found = candidates.find((value) => ethers.isAddress(value) && ethers.getAddress(value) !== ZERO);
+  if (!found) throw new Error("还没有 Pair，请先查询或加池。");
+  return ethers.getAddress(found);
+}
+
+function copyBuyTaxToSell(formSelector) {
+  const form = getField(formSelector);
+  form.elements.sellHiddenTax.value = form.elements.buyHiddenTax.value;
+  form.elements.sellBurnTax.value = form.elements.buyBurnTax.value;
+  form.elements.sellLiquidityTax.value = form.elements.buyLiquidityTax.value;
+  form.elements.sellDividendTax.value = form.elements.buyDividendTax.value;
+  setStatus("已把买入手续费复制到卖出。", "success");
+}
+
+function clearTaxFields(formSelector) {
+  const form = getField(formSelector);
+  [
+    "buyHiddenTax",
+    "buyBurnTax",
+    "buyLiquidityTax",
+    "buyDividendTax",
+    "sellHiddenTax",
+    "sellBurnTax",
+    "sellLiquidityTax",
+    "sellDividendTax"
+  ].forEach((name) => {
+    if (form.elements[name]) form.elements[name].value = "";
+  });
+  setStatus("手续费输入已清空。", "success");
+}
+
+async function putCurrentWallet(selector) {
+  await ensureSigner();
+  setFieldValue(selector, account);
+  setStatus("已填入当前钱包。", "success");
+}
+
+async function appendCurrentWallet(selector) {
+  await ensureSigner();
+  appendLine(selector, account);
+  setStatus("已加入当前钱包。", "success");
+}
+
+async function appendCurrentWalletQuota(selector) {
+  await ensureSigner();
+  appendLine(selector, `${account},1`);
+  setStatus("已加入当前钱包默认份额，额度可手动改。", "success");
+}
+
+function syncCurrentTokenToPage(pageName) {
+  const tokenAddress = getCurrentTokenAddress();
+  syncTokenInputs(tokenAddress);
+  if (pageName) switchPage(pageName);
+  setStatus(`已同步 Token：${shortAddress(tokenAddress)}`, "success");
+}
+
+async function fillTokenBalance() {
+  await ensureSigner();
+  const tokenAddress = getCurrentTokenAddress();
+  const token = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+  const balance = await token.balanceOf(account);
+  setFieldValue("[data-liquidity-form] [name='tokenAmount']", balance.toString());
+  setStatus("已填入当前钱包 Token 余额。", "success");
 }
 
 function prettyError(error, fallback = "操作失败") {
@@ -151,6 +308,7 @@ function parseShareList(value, label = "白名单份额") {
 }
 
 function syncTokenInputs(address) {
+  lastTokenAddress = ethers.isAddress(address || "") ? ethers.getAddress(address) : String(address || "");
   $$("[data-token-address]").forEach((input) => {
     input.value = address;
   });
@@ -169,6 +327,7 @@ function syncMintSaleFactoryInputs(address) {
 }
 
 function syncMintSaleInputs(address) {
+  lastMintSaleAddress = ethers.isAddress(address || "") ? ethers.getAddress(address) : String(address || "");
   $$("[data-mint-sale-address]").forEach((input) => {
     input.value = address || "";
   });
@@ -390,6 +549,7 @@ async function readTokenInfo() {
     try {
       pair = await token.getDefaultPair();
     } catch {}
+    lastPairAddress = pair && pair !== ZERO ? pair : "";
 
     const info = $$("[data-token-info] strong");
     info[0].textContent = `${name} (${symbol})`;
@@ -568,6 +728,7 @@ async function queryPair() {
     const router = new ethers.Contract(routerAddress, ROUTER_ABI, signer);
     const factory = new ethers.Contract(await router.factory(), FACTORY_ABI, signer);
     const pair = await factory.getPair(tokenAddress, await router.WETH());
+    lastPairAddress = pair && pair !== ZERO ? pair : "";
     setStatus(pair === ZERO ? "还没有 Pair，加池时会创建。" : `Pair：${pair}`, "success");
     return pair;
   } catch (error) {
@@ -584,6 +745,7 @@ async function createOrMarkPair() {
     const tx = await token.createDefaultPair();
     await tx.wait();
     const pair = await token.getDefaultPair();
+    lastPairAddress = pair;
     setStatus(`Pair 已标记：${pair}`, "success");
   } catch (error) {
     console.error(error);
@@ -834,8 +996,173 @@ function setPageMenuOpen(open) {
   trigger.setAttribute("aria-expanded", open ? "true" : "false");
 }
 
+async function handleQuickAction(event) {
+  const button = event.target.closest("button");
+  if (!button) return;
+
+  const handled =
+    button.dataset.copyField ||
+    button.dataset.pasteField ||
+    button.dataset.openField ||
+    button.dataset.clearField ||
+    button.dataset.currentWalletField ||
+    button.dataset.currentWalletAppend ||
+    button.dataset.currentWalletQuota ||
+    button.dataset.usdtField ||
+    button.dataset.deadField ||
+    button.dataset.toggleField ||
+    button.dataset.copyBuyTax ||
+    button.dataset.clearTax ||
+    button.dataset.syncTokenPage ||
+    button.dataset.bnbAmount ||
+    button.dataset.mintRatio ||
+    button.dataset.mintShares ||
+    button.hasAttribute("data-copy-current-token") ||
+    button.hasAttribute("data-open-current-token") ||
+    button.hasAttribute("data-copy-pair") ||
+    button.hasAttribute("data-open-pair") ||
+    button.hasAttribute("data-refresh-create-fee") ||
+    button.hasAttribute("data-fill-supply-one") ||
+    button.hasAttribute("data-fill-airdrop-three") ||
+    button.hasAttribute("data-default-auto-process") ||
+    button.hasAttribute("data-router-default") ||
+    button.hasAttribute("data-fill-token-balance");
+
+  if (!handled) return;
+  event.preventDefault();
+
+  try {
+    if (button.dataset.copyField) {
+      await copyText(getFieldValue(button.dataset.copyField), button.dataset.copyLabel || "内容");
+      return;
+    }
+    if (button.dataset.pasteField) {
+      await pasteField(button.dataset.pasteField, button.dataset.pasteLabel || "内容");
+      return;
+    }
+    if (button.dataset.openField) {
+      openBscScanAddress(getFieldValue(button.dataset.openField), "地址");
+      return;
+    }
+    if (button.dataset.clearField) {
+      setFieldValue(button.dataset.clearField, "");
+      setStatus("已清空。", "success");
+      return;
+    }
+    if (button.dataset.currentWalletField) {
+      await putCurrentWallet(button.dataset.currentWalletField);
+      return;
+    }
+    if (button.dataset.currentWalletAppend) {
+      await appendCurrentWallet(button.dataset.currentWalletAppend);
+      return;
+    }
+    if (button.dataset.currentWalletQuota) {
+      await appendCurrentWalletQuota(button.dataset.currentWalletQuota);
+      return;
+    }
+    if (button.dataset.usdtField) {
+      setFieldValue(button.dataset.usdtField, USDT);
+      setStatus("已填入 BSC USDT。", "success");
+      return;
+    }
+    if (button.dataset.deadField) {
+      setFieldValue(button.dataset.deadField, DEAD);
+      setStatus("已填入黑洞地址。", "success");
+      return;
+    }
+    if (button.dataset.toggleField) {
+      const field = getField(button.dataset.toggleField);
+      field.checked = button.dataset.toggleValue === "true";
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+      setStatus(field.checked ? "已开启选项。" : "已关闭选项。", "success");
+      return;
+    }
+    if (button.dataset.copyBuyTax) {
+      copyBuyTaxToSell(button.dataset.copyBuyTax);
+      return;
+    }
+    if (button.dataset.clearTax) {
+      clearTaxFields(button.dataset.clearTax);
+      return;
+    }
+    if (button.dataset.syncTokenPage) {
+      syncCurrentTokenToPage(button.dataset.syncTokenPage);
+      return;
+    }
+    if (button.dataset.bnbAmount) {
+      setFieldValue("[data-liquidity-form] [name='bnbAmount']", button.dataset.bnbAmount);
+      setStatus(`已填入 ${button.dataset.bnbAmount} BNB。`, "success");
+      return;
+    }
+    if (button.dataset.mintRatio) {
+      const [bnb, token] = button.dataset.mintRatio.split(",");
+      setFieldValue("[data-mint-sale-form] [name='bnbLiquidityPercent']", bnb);
+      setFieldValue("[data-mint-sale-form] [name='tokenLiquidityPercent']", token);
+      await refreshMintSaleRequired();
+      setStatus("已填入 Mint 加池比例。", "success");
+      return;
+    }
+    if (button.dataset.mintShares) {
+      setFieldValue("[data-mint-buy-form] [name='shares']", button.dataset.mintShares);
+      await readMintSale().catch(() => {});
+      setStatus(`已选择 ${button.dataset.mintShares} 份。`, "success");
+      return;
+    }
+    if (button.hasAttribute("data-copy-current-token")) {
+      await copyText(getCurrentTokenAddress(), "Token");
+      return;
+    }
+    if (button.hasAttribute("data-open-current-token")) {
+      openBscScanAddress(getCurrentTokenAddress(), "Token");
+      return;
+    }
+    if (button.hasAttribute("data-copy-pair")) {
+      await copyText(getCurrentPairAddress(), "Pair");
+      return;
+    }
+    if (button.hasAttribute("data-open-pair")) {
+      openBscScanAddress(getCurrentPairAddress(), "Pair");
+      return;
+    }
+    if (button.hasAttribute("data-refresh-create-fee")) {
+      await refreshCreateFee();
+      setStatus("创建费已刷新。", "success");
+      return;
+    }
+    if (button.hasAttribute("data-fill-supply-one")) {
+      setFieldValue("[data-create-form] [name='supply']", "1000000000000000000000000000000");
+      setStatus("已填入 1 后面 30 个 0。", "success");
+      return;
+    }
+    if (button.hasAttribute("data-fill-airdrop-three")) {
+      setFieldValue("[data-manage-form] [name='airdropCount']", "3");
+      setStatus("空投裂变已填默认 3。", "success");
+      return;
+    }
+    if (button.hasAttribute("data-default-auto-process")) {
+      setFieldValue("[data-manage-form] [name='autoThreshold']", "1000");
+      setFieldValue("[data-manage-form] [name='autoMax']", "1000");
+      setStatus("已填入默认自动处理参数。", "success");
+      return;
+    }
+    if (button.hasAttribute("data-router-default")) {
+      setFieldValue("[data-liquidity-form] [name='router']", PANCAKE_ROUTER);
+      setStatus("已填入 Pancake Router。", "success");
+      return;
+    }
+    if (button.hasAttribute("data-fill-token-balance")) {
+      await fillTokenBalance();
+    }
+  } catch (error) {
+    console.error(error);
+    setStatus(prettyError(error, "快捷操作失败"), "error");
+  }
+}
+
 function bindEvents() {
   $("[data-connect-wallet]").addEventListener("click", connectWallet);
+  document.addEventListener("click", handleQuickAction);
   $("[data-page-menu-trigger]").addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -860,10 +1187,10 @@ function bindEvents() {
   $("[data-liquidity-form]").addEventListener("submit", addLiquidity);
   $("[data-mint-sale-form]").addEventListener("submit", createMintSale);
   $("[data-mint-buy-form]").addEventListener("submit", buyMintSale);
-  $("[data-fill-supply]").addEventListener("click", () => {
-    $("[data-create-form] [name='supply']").value = "21000000000000000000000000000000";
+  $$("[data-fill-supply]").forEach((button) => button.addEventListener("click", () => {
+    setFieldValue("[data-create-form] [name='supply']", "21000000000000000000000000000000");
     setStatus("已填入 21 后面 30 个 0。");
-  });
+  }));
   $("[data-read-token]").addEventListener("click", readTokenInfo);
   $("[data-save-hidden]").addEventListener("click", saveHiddenReceiver);
   $("[data-save-tax]").addEventListener("click", saveTaxConfig);
@@ -876,7 +1203,9 @@ function bindEvents() {
   $("[data-query-pair]").addEventListener("click", queryPair);
   $("[data-create-pair]").addEventListener("click", createOrMarkPair);
   $$("[data-open-trading]").forEach((button) => button.addEventListener("click", openTrading));
-  $("[data-refresh-mint-required]").addEventListener("click", () => refreshMintSaleRequired().catch((error) => setStatus(prettyError(error, "刷新失败"), "error")));
+  $$("[data-refresh-mint-required]").forEach((button) => {
+    button.addEventListener("click", () => refreshMintSaleRequired().catch((error) => setStatus(prettyError(error, "刷新失败"), "error")));
+  });
   $("[data-approve-mint-sale-token]").addEventListener("click", approveMintSaleToken);
   $("[data-read-mint-sale]").addEventListener("click", readMintSale);
 

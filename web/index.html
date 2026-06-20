@@ -62,6 +62,12 @@
               <span>发射台工厂地址</span>
               <input name="launchpad" data-launchpad-address type="text" placeholder="部署后填入 SnowballLaunchpad 地址" />
             </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-copy-field="[data-create-form] [name='launchpad']" data-copy-label="工厂地址">复制工厂</button>
+              <button class="ghost-button mini-button" type="button" data-paste-field="[data-create-form] [name='launchpad']" data-paste-label="工厂地址">粘贴工厂</button>
+              <button class="ghost-button mini-button" type="button" data-open-field="[data-create-form] [name='launchpad']">打开工厂</button>
+              <button class="ghost-button mini-button" type="button" data-refresh-create-fee>刷新创建费</button>
+            </div>
 
             <label class="field">
               <span>代币名称</span>
@@ -75,6 +81,11 @@
               <span>发行总量</span>
               <input name="supply" type="text" inputmode="numeric" placeholder="例如 21000000000000000000000000000000" />
             </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-fill-supply>21 后面 30 个 0</button>
+              <button class="ghost-button mini-button" type="button" data-fill-supply-one>1 后面 30 个 0</button>
+              <button class="ghost-button mini-button" type="button" data-clear-field="[data-create-form] [name='supply']">清空总量</button>
+            </div>
             <label class="field">
               <span>营销地址</span>
               <input name="hiddenReceiver" type="text" placeholder="不填则默认创建者钱包" />
@@ -83,6 +94,12 @@
               <span>分红币</span>
               <input name="rewardToken" type="text" placeholder="不填则默认 BSC USDT" />
             </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-current-wallet-field="[data-create-form] [name='hiddenReceiver']">营销用当前钱包</button>
+              <button class="ghost-button mini-button" type="button" data-usdt-field="[data-create-form] [name='rewardToken']">分红币填 USDT</button>
+              <button class="ghost-button mini-button" type="button" data-copy-field="[data-create-form] [name='hiddenReceiver']" data-copy-label="营销地址">复制营销地址</button>
+              <button class="ghost-button mini-button" type="button" data-paste-field="[data-create-form] [name='hiddenReceiver']" data-paste-label="营销地址">粘贴营销地址</button>
+            </div>
 
             <label class="switch-card">
               <input name="manualOpen" type="checkbox" checked disabled />
@@ -114,12 +131,21 @@
                 <label><span>分红 %</span><input name="sellDividendTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
                 <label><span>销毁 %</span><input name="sellBurnTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
               </div>
+              <div class="action-row embedded-actions quick-actions">
+                <button class="ghost-button mini-button" type="button" data-copy-buy-tax="[data-create-form]">买入复制到卖出</button>
+                <button class="ghost-button mini-button" type="button" data-clear-tax="[data-create-form]">清空手续费</button>
+              </div>
             </div>
 
             <label class="field wide">
               <span>普通白名单</span>
               <textarea name="ordinaryWhitelist" rows="4" placeholder="每行一个地址，可留空"></textarea>
             </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-current-wallet-append="[data-create-form] [name='ordinaryWhitelist']">加入当前钱包</button>
+              <button class="ghost-button mini-button" type="button" data-paste-field="[data-create-form] [name='ordinaryWhitelist']" data-paste-label="普通白名单">粘贴白名单</button>
+              <button class="ghost-button mini-button" type="button" data-clear-field="[data-create-form] [name='ordinaryWhitelist']">清空白名单</button>
+            </div>
 
             <label class="switch-card wide">
               <input name="limitMode" type="checkbox" />
@@ -130,6 +156,12 @@
               <span>限购名单</span>
               <textarea name="limitList" rows="4" placeholder="格式：地址,额度&#10;0xabc...,100000"></textarea>
             </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-current-wallet-quota="[data-create-form] [name='limitList']">当前钱包额度</button>
+              <button class="ghost-button mini-button" type="button" data-paste-field="[data-create-form] [name='limitList']" data-paste-label="限购名单">粘贴限购</button>
+              <button class="ghost-button mini-button" type="button" data-toggle-field="[data-create-form] [name='limitMode']" data-toggle-value="true">启用限购</button>
+              <button class="ghost-button mini-button" type="button" data-clear-field="[data-create-form] [name='limitList']">清空限购</button>
+            </div>
 
             <label class="switch-card wide">
               <input name="autoVerify" type="checkbox" checked />
@@ -138,7 +170,6 @@
 
             <div class="action-row wide">
               <button class="primary-button" type="submit">上链创建</button>
-              <button class="ghost-button" type="button" data-fill-supply>填入 21 后面 30 个 0</button>
               <span data-create-fee>创建费：读取中</span>
             </div>
           </form>
@@ -157,6 +188,11 @@
             </label>
             <div class="action-row wide inline-actions">
               <button class="secondary-button" type="button" data-read-token>读取配置</button>
+              <button class="ghost-button mini-button" type="button" data-copy-current-token>复制 Token</button>
+              <button class="ghost-button mini-button" type="button" data-paste-field="[data-manage-form] [name='token']" data-paste-label="Token 合约">粘贴 Token</button>
+              <button class="ghost-button mini-button" type="button" data-open-current-token>打开 Token</button>
+              <button class="ghost-button mini-button" type="button" data-sync-token-page="liquidity">同步到加池</button>
+              <button class="ghost-button mini-button" type="button" data-sync-token-page="mint-sale">同步到 Mint</button>
             </div>
 
             <div class="info-grid wide" data-token-info>
@@ -169,6 +205,12 @@
               </div>
               <div><span>Pair</span><strong>--</strong></div>
             </div>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-copy-pair>复制 Pair</button>
+              <button class="ghost-button mini-button" type="button" data-open-pair>打开 Pair</button>
+              <button class="ghost-button mini-button" type="button" data-sync-token-page="liquidity">去加池/标记 Pair</button>
+              <button class="ghost-button mini-button" type="button" data-open-current-token>打开 Token</button>
+            </div>
 
             <label class="field">
               <span>营销地址</span>
@@ -179,9 +221,11 @@
               <input name="airdropCount" type="number" min="0" max="10" value="3" />
             </label>
             <div class="action-row">
+              <button class="ghost-button mini-button" type="button" data-current-wallet-field="[data-manage-form] [name='hiddenReceiver']">当前钱包</button>
               <button class="secondary-button" type="button" data-save-hidden>保存营销地址</button>
             </div>
             <div class="action-row">
+              <button class="ghost-button mini-button" type="button" data-fill-airdrop-three>默认 3</button>
               <button class="secondary-button" type="button" data-save-airdrop>保存空投</button>
             </div>
 
@@ -207,6 +251,8 @@
                 <label><span>销毁 %</span><input name="sellBurnTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
               </div>
               <div class="action-row embedded-actions">
+                <button class="ghost-button mini-button" type="button" data-copy-buy-tax="[data-manage-form]">买入复制到卖出</button>
+                <button class="ghost-button mini-button" type="button" data-clear-tax="[data-manage-form]">清空手续费</button>
                 <button class="secondary-button" type="button" data-save-tax>保存税收</button>
               </div>
             </div>
@@ -218,6 +264,7 @@
               <label><span>处理回流/分红</span><input name="processOther" type="text" inputmode="numeric" value="0,0" /></label>
             </div>
             <div class="action-row wide inline-actions">
+              <button class="ghost-button mini-button" type="button" data-default-auto-process>填默认处理</button>
               <button class="secondary-button" type="button" data-save-auto-process>保存自动处理</button>
               <button class="secondary-button" type="button" data-process-fees>处理税池</button>
             </div>
@@ -227,8 +274,11 @@
               <textarea name="ordinaryWhitelist" rows="3" placeholder="每行一个地址"></textarea>
             </label>
             <div class="action-row wide inline-actions">
+              <button class="ghost-button mini-button" type="button" data-current-wallet-append="[data-manage-form] [name='ordinaryWhitelist']">加入当前钱包</button>
+              <button class="ghost-button mini-button" type="button" data-paste-field="[data-manage-form] [name='ordinaryWhitelist']" data-paste-label="普通白名单">粘贴白名单</button>
               <button class="secondary-button" type="button" data-add-white>加白名单</button>
               <button class="secondary-button" type="button" data-remove-white>移除白名单</button>
+              <button class="ghost-button mini-button" type="button" data-clear-field="[data-manage-form] [name='ordinaryWhitelist']">清空</button>
             </div>
 
             <label class="switch-card wide">
@@ -241,6 +291,10 @@
               <textarea name="limitList" rows="3" placeholder="格式：地址,额度"></textarea>
             </label>
             <div class="action-row wide">
+              <button class="ghost-button mini-button" type="button" data-current-wallet-quota="[data-manage-form] [name='limitList']">当前钱包额度</button>
+              <button class="ghost-button mini-button" type="button" data-paste-field="[data-manage-form] [name='limitList']" data-paste-label="限购名单">粘贴限购</button>
+              <button class="ghost-button mini-button" type="button" data-toggle-field="[data-manage-form] [name='limitMode']" data-toggle-value="true">启用限购</button>
+              <button class="ghost-button mini-button" type="button" data-toggle-field="[data-manage-form] [name='limitMode']" data-toggle-value="false">关闭限购</button>
               <button class="secondary-button" type="button" data-save-limit>保存限购</button>
             </div>
           </form>
@@ -257,10 +311,21 @@
               <span>Token 合约</span>
               <input name="token" data-token-address type="text" />
             </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-copy-current-token>复制 Token</button>
+              <button class="ghost-button mini-button" type="button" data-paste-field="[data-liquidity-form] [name='token']" data-paste-label="Token 合约">粘贴 Token</button>
+              <button class="ghost-button mini-button" type="button" data-open-current-token>打开 Token</button>
+              <button class="ghost-button mini-button" type="button" data-sync-token-page="manage">同步到管理</button>
+              <button class="ghost-button mini-button" type="button" data-fill-token-balance>填钱包全部 Token</button>
+            </div>
             <label class="field wide">
               <span>Pancake Router</span>
               <input name="router" type="text" value="0x10ED43C718714eb63d5aA57B78B54704E256024E" />
             </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-router-default>填 Pancake Router</button>
+              <button class="ghost-button mini-button" type="button" data-copy-field="[data-liquidity-form] [name='router']" data-copy-label="Router">复制 Router</button>
+            </div>
             <label class="field">
               <span>加池 Token 数量</span>
               <input name="tokenAmount" type="text" inputmode="numeric" value="1000000000000000" />
@@ -269,10 +334,21 @@
               <span>加池 BNB 数量</span>
               <input name="bnbAmount" type="text" inputmode="decimal" placeholder="例如 1" />
             </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-bnb-amount="0.1">BNB 填 0.1</button>
+              <button class="ghost-button mini-button" type="button" data-bnb-amount="0.5">BNB 填 0.5</button>
+              <button class="ghost-button mini-button" type="button" data-bnb-amount="1">BNB 填 1</button>
+              <button class="ghost-button mini-button" type="button" data-clear-field="[data-liquidity-form] [name='bnbAmount']">清空 BNB</button>
+            </div>
             <label class="field wide">
               <span>LP 接收地址</span>
               <input name="lpReceiver" type="text" value="0x000000000000000000000000000000000000dEaD" />
             </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-dead-field="[data-liquidity-form] [name='lpReceiver']">LP 默认黑洞</button>
+              <button class="ghost-button mini-button" type="button" data-current-wallet-field="[data-liquidity-form] [name='lpReceiver']">LP 到当前钱包</button>
+              <button class="ghost-button mini-button" type="button" data-copy-field="[data-liquidity-form] [name='lpReceiver']" data-copy-label="LP 接收地址">复制 LP 地址</button>
+            </div>
             <label class="switch-card wide">
               <input name="markPair" type="checkbox" checked />
               <span>加池后自动标记 Pair</span>
@@ -298,14 +374,26 @@
               <span>Mint 预售工厂</span>
               <input name="factory" data-mint-sale-factory-address type="text" placeholder="部署后填入 MintAddSaleFactory 地址" />
             </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-copy-field="[data-mint-sale-form] [name='factory']" data-copy-label="Mint 预售工厂">复制工厂</button>
+              <button class="ghost-button mini-button" type="button" data-paste-field="[data-mint-sale-form] [name='factory']" data-paste-label="Mint 预售工厂">粘贴工厂</button>
+              <button class="ghost-button mini-button" type="button" data-open-field="[data-mint-sale-form] [name='factory']">打开工厂</button>
+              <button class="ghost-button mini-button" type="button" data-refresh-mint-required>刷新创建费</button>
+            </div>
             <label class="field">
               <span>预售名称</span>
               <input name="saleName" type="text" value="Good Luck Token" />
             </label>
             <label class="field">
               <span>预售代币地址</span>
-              <input name="token" type="text" placeholder="Token 合约地址" />
+              <input name="token" data-token-address type="text" placeholder="Token 合约地址" />
             </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-copy-current-token>复制 Token</button>
+              <button class="ghost-button mini-button" type="button" data-paste-field="[data-mint-sale-form] [name='token']" data-paste-label="预售代币">粘贴 Token</button>
+              <button class="ghost-button mini-button" type="button" data-open-current-token>打开 Token</button>
+              <button class="ghost-button mini-button" type="button" data-sync-token-page="liquidity">同步到加池</button>
+            </div>
             <label class="field">
               <span>每份价格</span>
               <input name="pricePerShare" type="text" inputmode="decimal" value="0.001" />
@@ -334,6 +422,10 @@
               <span>收款地址</span>
               <input name="fundReceiver" type="text" placeholder="未加池的 BNB 到这个地址" />
             </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-current-wallet-field="[data-mint-sale-form] [name='fundReceiver']">收款用当前钱包</button>
+              <button class="ghost-button mini-button" type="button" data-copy-field="[data-mint-sale-form] [name='fundReceiver']" data-copy-label="收款地址">复制收款地址</button>
+            </div>
 
             <label class="switch-card wide">
               <input name="whitelistEnabled" type="checkbox" />
@@ -347,12 +439,24 @@
               <span>白名单份额</span>
               <textarea name="whitelistList" rows="4" placeholder="格式：地址,份额&#10;0xabc...,10"></textarea>
             </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-current-wallet-quota="[data-mint-sale-form] [name='whitelistList']">当前钱包份额</button>
+              <button class="ghost-button mini-button" type="button" data-paste-field="[data-mint-sale-form] [name='whitelistList']" data-paste-label="Mint 白名单">粘贴白名单</button>
+              <button class="ghost-button mini-button" type="button" data-toggle-field="[data-mint-sale-form] [name='whitelistEnabled']" data-toggle-value="true">开启白名单</button>
+              <button class="ghost-button mini-button" type="button" data-toggle-field="[data-mint-sale-form] [name='whitelistEnabled']" data-toggle-value="false">关闭白名单</button>
+            </div>
 
             <div class="fee-grid wide">
               <label><span>BNB 加池比例 %</span><input name="bnbLiquidityPercent" type="number" min="0" max="100" step="1" value="100" /></label>
               <label><span>Token 加池比例 %</span><input name="tokenLiquidityPercent" type="number" min="0" max="100" step="1" value="50" /></label>
               <label><span>创建费</span><input name="createFeePreview" type="text" value="读取中" readonly /></label>
               <label><span>需授权 Token</span><input name="requiredTokensPreview" type="text" value="1000000" readonly /></label>
+            </div>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-mint-ratio="100,50">默认加池比例</button>
+              <button class="ghost-button mini-button" type="button" data-mint-ratio="100,100">全部配对加池</button>
+              <button class="ghost-button mini-button" type="button" data-mint-ratio="0,0">不自动加池</button>
+              <button class="ghost-button mini-button" type="button" data-refresh-mint-required>刷新所需授权</button>
             </div>
 
             <label class="switch-card wide">
@@ -380,6 +484,11 @@
               <span>预售合约</span>
               <input name="sale" data-mint-sale-address type="text" placeholder="创建成功后会自动填入" />
             </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-copy-field="[data-mint-buy-form] [name='sale']" data-copy-label="预售合约">复制预售</button>
+              <button class="ghost-button mini-button" type="button" data-paste-field="[data-mint-buy-form] [name='sale']" data-paste-label="预售合约">粘贴预售</button>
+              <button class="ghost-button mini-button" type="button" data-open-field="[data-mint-buy-form] [name='sale']">打开预售</button>
+            </div>
             <label class="field">
               <span>购买份数</span>
               <input name="shares" type="text" inputmode="numeric" value="1" />
@@ -395,6 +504,9 @@
               <div><span>加池比例</span><strong>--</strong></div>
             </div>
             <div class="action-row wide">
+              <button class="ghost-button mini-button" type="button" data-mint-shares="1">1 份</button>
+              <button class="ghost-button mini-button" type="button" data-mint-shares="5">5 份</button>
+              <button class="ghost-button mini-button" type="button" data-mint-shares="10">10 份</button>
               <button class="secondary-button" type="button" data-read-mint-sale>读取预售</button>
               <button class="primary-button" type="submit">立即 Mint</button>
             </div>

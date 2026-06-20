@@ -544,6 +544,27 @@ textarea:focus {
   padding-top: 4px;
 }
 
+.quick-actions {
+  align-items: stretch;
+  gap: 8px;
+  margin-top: -8px;
+  padding: 0 0 4px;
+}
+
+.quick-actions + .field,
+.quick-actions + .switch-card,
+.quick-actions + .fee-panel {
+  margin-top: 2px;
+}
+
+.mini-button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .inline-actions {
   margin-top: -8px;
   padding-bottom: 6px;
@@ -682,6 +703,19 @@ textarea:focus {
   .ghost-button,
   .danger-button {
     width: 100%;
+  }
+
+  .quick-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .quick-actions .mini-button {
+    width: 100%;
+    white-space: normal;
+    line-height: 1.25;
+    min-height: 36px;
   }
 
   .trade-status-card .compact-button {
