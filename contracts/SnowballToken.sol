@@ -4,14 +4,11 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./base/interface/IFactory.sol";
 import "./base/interface/IRouter.sol";
 
 contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
-    using SafeERC20 for IERC20;
-
     uint256 public constant FEE_DENOMINATOR = 10_000;
     uint256 public constant MAX_TOTAL_TAX_BP = 2_500;
     uint256 public constant MAGNITUDE = 2 ** 128;
@@ -28,7 +25,6 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
         uint16 dividendBp;
     }
 
-    TaxConfig public taxConfig;
     TaxConfig public buyTaxConfig;
     TaxConfig public sellTaxConfig;
     IRouter public router;
@@ -68,7 +64,6 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
     event TaxExemptUpdated(address indexed account, bool enabled);
     event LimitQuotaUpdated(address indexed account, uint256 quota);
     event LimitModeUpdated(bool enabled);
-    event TaxConfigUpdated(uint16 hiddenTaxBp, uint16 burnBp, uint16 liquidityBp, uint16 dividendBp);
     event TradeTaxConfigUpdated(
         uint16 buyHiddenTaxBp,
         uint16 buyBurnBp,
@@ -104,6 +99,8 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
     error PairChangeAfterOpen();
     error InsufficientPendingTokens();
     error DividendUnavailable();
+    error TransferFailed();
+    error AirdropCountTooHigh();
 
     constructor(
         string memory name_,
@@ -129,7 +126,6 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
         hiddenFeeReceiver = hiddenFeeReceiver_;
         buyTaxConfig = initialBuyTaxConfig_;
         sellTaxConfig = initialSellTaxConfig_;
-        taxConfig = initialSellTaxConfig_;
         if (_totalTaxBp(initialBuyTaxConfig_) > MAX_TOTAL_TAX_BP) revert TaxTooHigh();
         if (_totalTaxBp(initialSellTaxConfig_) > MAX_TOTAL_TAX_BP) revert TaxTooHigh();
 
@@ -182,7 +178,7 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
     }
 
     function totalTaxBp() public view returns (uint256) {
-        return _totalTaxBp(taxConfig);
+        return _totalTaxBp(sellTaxConfig);
     }
 
     function buyTotalTaxBp() public view returns (uint256) {
@@ -202,6 +198,10 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
     }
 
     function openTrading() external onlyOwner {
+        address defaultPair = _defaultPairOrZero();
+        if (defaultPair != address(0) && !isPair[defaultPair]) {
+            _setPair(defaultPair, true);
+        }
         tradingOpen = true;
         emit TradingOpened(block.timestamp);
     }
@@ -218,7 +218,6 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
     }
 
     function createDefaultPair() external onlyOwner returns (address pair) {
-        if (tradingOpen) revert PairChangeAfterOpen();
         IRouter currentRouter = router;
         IFactory factory = IFactory(currentRouter.factory());
         pair = factory.getPair(address(this), currentRouter.WETH());
@@ -229,7 +228,6 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
     }
 
     function setPair(address pair, bool enabled) external onlyOwner {
-        if (tradingOpen) revert PairChangeAfterOpen();
         _setPair(pair, enabled);
     }
 
@@ -243,20 +241,6 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
             _setDividendExempt(oldWallet, false);
         }
         emit HiddenFeeReceiverUpdated(wallet);
-    }
-
-    function setTaxConfig(
-        uint16 hiddenTaxBp,
-        uint16 burnBp,
-        uint16 liquidityBp,
-        uint16 dividendBp
-    ) external onlyOwner {
-        TaxConfig memory next = TaxConfig(hiddenTaxBp, burnBp, liquidityBp, dividendBp);
-        if (_totalTaxBp(next) > MAX_TOTAL_TAX_BP) revert TaxTooHigh();
-        buyTaxConfig = next;
-        sellTaxConfig = next;
-        taxConfig = next;
-        emit TaxConfigUpdated(hiddenTaxBp, burnBp, liquidityBp, dividendBp);
     }
 
     function setTradeTaxConfig(
@@ -276,7 +260,6 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
 
         buyTaxConfig = nextBuy;
         sellTaxConfig = nextSell;
-        taxConfig = nextSell;
         emit TradeTaxConfigUpdated(
             buyHiddenTaxBp,
             buyBurnBp,
@@ -316,7 +299,7 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
     }
 
     function setAirdropConfig(uint8 count, uint256 amount) external onlyOwner {
-        require(count <= 10, "airdrop count too high");
+        if (count > 10) revert AirdropCountTooHigh();
         airdropCount = count;
         airdropAmount = amount;
         emit AirdropConfigUpdated(count, amount);
@@ -346,7 +329,7 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
 
     function depositDividends(uint256 amount) external nonReentrant {
         if (amount == 0) revert InvalidAmount();
-        IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
+        if (!IERC20(rewardToken).transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
         _distributeDividends(amount);
     }
 
@@ -373,7 +356,7 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
         uint256 amount = withdrawableDividendOf(msg.sender);
         if (amount == 0) revert DividendUnavailable();
         withdrawnDividends[msg.sender] += amount;
-        IERC20(rewardToken).safeTransfer(msg.sender, amount);
+        if (!IERC20(rewardToken).transfer(msg.sender, amount)) revert TransferFailed();
         emit DividendClaimed(msg.sender, amount);
     }
 
@@ -402,8 +385,9 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
             revert TradingNotOpen();
         }
 
-        bool isDexTrade = isPair[from] || isPair[to];
-        if (limitModeEnabled && isPair[from] && !ordinaryWhitelist[to]) {
+        (bool fromPair, bool toPair) = _resolvePairFlags(from, to);
+        bool isDexTrade = fromPair || toPair;
+        if (limitModeEnabled && fromPair && !ordinaryWhitelist[to]) {
             if (limitQuota[to] < value) revert LimitQuotaExceeded();
             limitQuota[to] -= value;
             emit LimitQuotaUpdated(to, limitQuota[to]);
@@ -414,14 +398,16 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
             return;
         }
 
-        if (isPair[to]) {
-            _maybeAutoProcessFees();
-        }
-
-        _taxedUpdate(from, to, value, isPair[from] ? buyTaxConfig : sellTaxConfig);
+        _taxedUpdate(from, to, value, fromPair ? buyTaxConfig : sellTaxConfig, toPair);
     }
 
-    function _taxedUpdate(address from, address to, uint256 amount, TaxConfig memory cfg) private {
+    function _taxedUpdate(
+        address from,
+        address to,
+        uint256 amount,
+        TaxConfig memory cfg,
+        bool processBeforeRecipient
+    ) private {
         uint256 hiddenFeeAmount = (amount * cfg.hiddenTaxBp) / FEE_DENOMINATOR;
         uint256 burnAmount = (amount * cfg.burnBp) / FEE_DENOMINATOR;
         uint256 liquidityAmount = (amount * cfg.liquidityBp) / FEE_DENOMINATOR;
@@ -439,8 +425,43 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
             pendingLiquidityTokens += liquidityAmount;
             pendingDividendTokens += dividendAmount;
         }
+        if (processBeforeRecipient) {
+            _maybeAutoProcessFees();
+        }
         _rawUpdate(from, to, sendAmount);
         _runAirdrop();
+    }
+
+    function _resolvePairFlags(address from, address to) private returns (bool fromPair, bool toPair) {
+        fromPair = isPair[from];
+        toPair = isPair[to];
+        if (fromPair || toPair) return (fromPair, toPair);
+
+        address defaultPair = _defaultPairOrZero();
+        if (defaultPair == address(0)) return (fromPair, toPair);
+
+        if (from == defaultPair) {
+            fromPair = true;
+        }
+        if (to == defaultPair) {
+            toPair = true;
+        }
+        if ((fromPair || toPair) && !isPair[defaultPair]) {
+            _setPair(defaultPair, true);
+        }
+    }
+
+    function _defaultPairOrZero() private view returns (address pair) {
+        IRouter currentRouter = router;
+        if (address(currentRouter).code.length == 0) {
+            return address(0);
+        }
+        address factory = currentRouter.factory();
+        address weth = currentRouter.WETH();
+        if (factory == address(0) || factory.code.length == 0 || weth == address(0)) {
+            return address(0);
+        }
+        pair = IFactory(factory).getPair(address(this), weth);
     }
 
     function _processFeeBuckets(
@@ -576,7 +597,7 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
         if (bnbAmount == 0) revert InvalidAmount();
 
         (bool success, ) = payable(hiddenFeeReceiver).call{value: bnbAmount}("");
-        require(success, "hidden fee transfer failed");
+        if (!success) revert TransferFailed();
 
         emit HiddenFeesProcessed(hiddenFeeReceiver, tokenAmount, bnbAmount);
     }

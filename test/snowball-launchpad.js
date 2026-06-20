@@ -116,6 +116,22 @@ describe("SnowballLaunchpad", function () {
     assert.equal(await token.pendingDividendTokens(), 0n);
   });
 
+  it("lets the creator mark the pair after opening and still applies DEX taxes", async function () {
+    const fixture = await deployFixture();
+    const { token } = await createSnowballToken(fixture);
+
+    await token.connect(fixture.creator).transfer(fixture.buyer.address, 10_000n);
+    await token.connect(fixture.creator).openTrading();
+    await token.connect(fixture.creator).setPair(fixture.pair.address, true);
+    await token.connect(fixture.buyer).transfer(fixture.pair.address, 10_000n);
+
+    assert.equal(await token.isPair(fixture.pair.address), true);
+    assert.equal(await token.balanceOf(fixture.pair.address), 9500n);
+    assert.equal(await token.pendingHiddenFeeTokens(), 400n);
+    assert.equal(await token.balanceOf(await token.DEAD()), 50n);
+    assert.equal(await token.pendingLiquidityTokens(), 50n);
+  });
+
   it("caps token tax settings at the contract total tax limit", async function () {
     const fixture = await deployFixture();
     const { token } = await createSnowballToken(fixture);
