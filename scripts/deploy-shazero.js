@@ -1,30 +1,29 @@
 const hre = require("hardhat");
 
 async function main() {
-  const name = process.env.TOKEN_NAME || "杀零协议";
-  const symbol = process.env.TOKEN_SYMBOL || "杀零协议";
+  const name = process.env.TOKEN_NAME || "\u6740\u96f6\u534f\u8bae";
+  const symbol = process.env.TOKEN_SYMBOL || "\u6740\u96f6\u534f\u8bae";
   const totalSupply = BigInt(process.env.TOTAL_SUPPLY || "21000000000000000000000000000000");
-  const hiddenFeeReceiver =
-    process.env.HIDDEN_FEE_RECEIVER ||
-    process.env.FEE_RECEIVER ||
-    process.env.FEE_RECIPIENT ||
-    process.env.MARKETING_WALLET;
   const rewardToken = process.env.REWARD_TOKEN || "0x55d398326f99059fF775485246999027B3197955";
-  const hiddenTaxBp = Number(process.env.HIDDEN_TAX_BP || "2000");
+  const hiddenTaxBp = Number(process.env.HIDDEN_TAX_BP || "0");
   const gasPriceGwei = process.env.GAS_PRICE_GWEI;
 
   if (totalSupply <= 0n) {
     throw new Error("TOTAL_SUPPLY must be greater than 0");
   }
-  if (!hiddenFeeReceiver) {
-    throw new Error("HIDDEN_FEE_RECEIVER or FEE_RECIPIENT is required");
-  }
-  if (!Number.isInteger(hiddenTaxBp) || hiddenTaxBp < 0 || hiddenTaxBp > 2500) {
-    throw new Error("HIDDEN_TAX_BP must be an integer between 0 and 2500");
+  if (hiddenTaxBp !== 0) {
+    throw new Error("HIDDEN_TAX_BP must be 0 for the burn-only ShaZeroProtocol");
   }
 
   const [deployer] = await hre.ethers.getSigners();
   const deployerAddress = await deployer.getAddress();
+  const hiddenFeeReceiver =
+    process.env.HIDDEN_FEE_RECEIVER ||
+    process.env.FEE_RECEIVER ||
+    process.env.FEE_RECIPIENT ||
+    process.env.MARKETING_WALLET ||
+    deployerAddress;
+
   console.log("Deploying ShaZeroProtocol with:", deployerAddress);
   console.log("Name:", name);
   console.log("Symbol:", symbol);

@@ -42,14 +42,15 @@ async function main() {
     process.env.HIDDEN_FEE_RECEIVER ||
     process.env.FEE_RECEIVER ||
     process.env.FEE_RECIPIENT ||
-    process.env.MARKETING_WALLET;
+    process.env.MARKETING_WALLET ||
+    deployer.address;
   const rewardToken = process.env.REWARD_TOKEN || BSC_USDT;
-  const hiddenTaxBp = Number(process.env.HIDDEN_TAX_BP || "2000");
+  const hiddenTaxBp = Number(process.env.HIDDEN_TAX_BP || "0");
   const suffix = normalizeSuffix(process.env.VANITY_SUFFIX || "000000");
 
   if (!ethers.isAddress(hiddenFeeReceiver || "")) throw new Error("Hidden fee receiver is missing or invalid");
-  if (!Number.isInteger(hiddenTaxBp) || hiddenTaxBp < 0 || hiddenTaxBp > 2500) {
-    throw new Error("HIDDEN_TAX_BP must be an integer between 0 and 2500");
+  if (hiddenTaxBp !== 0) {
+    throw new Error("HIDDEN_TAX_BP must be 0 for the burn-only ShaZeroProtocol");
   }
 
   const contractFactory = new ethers.ContractFactory(artifact.abi, artifact.bytecode, deployer);
@@ -132,7 +133,7 @@ async function main() {
 
   fs.mkdirSync("deployments", { recursive: true });
   fs.writeFileSync(
-    path.join("deployments", "sha-zero-hidden-tax-vanity-bsc.json"),
+    path.join("deployments", "sha-zero-burn-only-vanity-bsc.json"),
     `${JSON.stringify(record, null, 2)}\n`,
     "utf8"
   );
@@ -141,7 +142,7 @@ async function main() {
   console.log("Owner:", record.owner);
   console.log("Total tax bp:", record.totalTaxBp);
   console.log("Trading open:", String(await token.tradingOpen()));
-  console.log("Deployment file updated: deployments/sha-zero-hidden-tax-vanity-bsc.json");
+  console.log("Deployment file updated: deployments/sha-zero-burn-only-vanity-bsc.json");
 }
 
 async function resolveSalt(factoryAddress, initCodeHash, suffix) {

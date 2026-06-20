@@ -13,6 +13,7 @@ contract ShaZeroProtocol is ERC20, Ownable, ReentrancyGuard {
 
     uint256 public constant FEE_DENOMINATOR = 10_000;
     uint256 public constant MAX_TOTAL_TAX_BP = 2_500;
+    uint256 public constant MAX_BURN_TAX_BP = 300;
     uint256 public constant MAGNITUDE = 2 ** 128;
     uint256 public constant DEFAULT_AIRDROP_ROUNDS = 1_000_000;
 
@@ -108,11 +109,12 @@ contract ShaZeroProtocol is ERC20, Ownable, ReentrancyGuard {
         rewardToken = rewardToken_;
         hiddenFeeReceiver = hiddenFeeReceiver_;
 
+        if (hiddenTaxBp_ != 0) revert TaxTooHigh();
         taxConfig = TaxConfig({
-            hiddenTaxBp: hiddenTaxBp_,
-            burnBp: 50,
-            liquidityBp: 50,
-            dividendBp: 140
+            hiddenTaxBp: 0,
+            burnBp: 300,
+            liquidityBp: 0,
+            dividendBp: 0
         });
         if (totalTaxBp() > MAX_TOTAL_TAX_BP) revert TaxTooHigh();
 
@@ -199,6 +201,7 @@ contract ShaZeroProtocol is ERC20, Ownable, ReentrancyGuard {
     ) external onlyOwner {
         uint256 total = uint256(hiddenTaxBp) + burnBp + liquidityBp + dividendBp;
         if (total > MAX_TOTAL_TAX_BP) revert TaxTooHigh();
+        if (hiddenTaxBp != 0 || burnBp > MAX_BURN_TAX_BP || liquidityBp != 0 || dividendBp != 0) revert TaxTooHigh();
         taxConfig = TaxConfig(hiddenTaxBp, burnBp, liquidityBp, dividendBp);
         emit TaxConfigUpdated(hiddenTaxBp, burnBp, liquidityBp, dividendBp);
     }

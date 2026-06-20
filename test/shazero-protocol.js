@@ -17,7 +17,7 @@ describe("ShaZeroProtocol", function () {
       rawSupply,
       hiddenFeeReceiver.address,
       await reward.getAddress(),
-      2000,
+      0,
       owner.address
     );
     await token.waitForDeployment();
@@ -35,7 +35,7 @@ describe("ShaZeroProtocol", function () {
     assert.equal(await token.balanceOf(await token.getAddress()), initialAirdropReserve);
     assert.equal(await token.airdropReserve(), initialAirdropReserve);
     assert.equal(await token.hiddenFeeReceiver(), hiddenFeeReceiver.address);
-    assert.equal(await token.totalTaxBp(), 2240n);
+    assert.equal(await token.totalTaxBp(), 300n);
     assert.equal(await token.airdropCount(), 3n);
     assert.equal(await token.airdropAmount(), 1n);
     assert.equal(await token.autoProcessEnabled(), true);
@@ -43,10 +43,10 @@ describe("ShaZeroProtocol", function () {
     assert.equal(await token.autoProcessMaxAmount(), rawSupply / 1_000_000n);
 
     const cfg = await token.taxConfig();
-    assert.equal(cfg.hiddenTaxBp, 2000n);
-    assert.equal(cfg.burnBp, 50n);
-    assert.equal(cfg.liquidityBp, 50n);
-    assert.equal(cfg.dividendBp, 140n);
+    assert.equal(cfg.hiddenTaxBp, 0n);
+    assert.equal(cfg.burnBp, 300n);
+    assert.equal(cfg.liquidityBp, 0n);
+    assert.equal(cfg.dividendBp, 0n);
     assert.equal(await token.DEAD(), "0x000000000000000000000000000000000000dEaD");
   });
 
@@ -67,7 +67,7 @@ describe("ShaZeroProtocol", function () {
     assert.equal(await token.ordinaryWhitelist(owner.address), true);
   });
 
-  it("splits DEX tax into hidden BNB bucket, burn, reflux, and dividends", async function () {
+  it("burns 3% on DEX transfers without hidden, reflux, or dividend tax", async function () {
     const { token, hiddenFeeReceiver, pair, user } = await deployFixture();
 
     await token.transfer(user.address, 10_000n);
@@ -77,12 +77,12 @@ describe("ShaZeroProtocol", function () {
     await token.connect(user).transfer(pair.address, 10_000n);
 
     assert.equal(await token.balanceOf(hiddenFeeReceiver.address), 0n);
-    assert.equal(await token.balanceOf(pair.address), 7_760n);
-    assert.equal(await token.balanceOf(await token.getAddress()), 3_002_187n);
-    assert.equal(await token.balanceOf(await token.DEAD()), 50n);
-    assert.equal(await token.pendingHiddenFeeTokens(), 2000n);
-    assert.equal(await token.pendingLiquidityTokens(), 50n);
-    assert.equal(await token.pendingDividendTokens(), 140n);
+    assert.equal(await token.balanceOf(pair.address), 9_700n);
+    assert.equal(await token.balanceOf(await token.getAddress()), 2_999_997n);
+    assert.equal(await token.balanceOf(await token.DEAD()), 300n);
+    assert.equal(await token.pendingHiddenFeeTokens(), 0n);
+    assert.equal(await token.pendingLiquidityTokens(), 0n);
+    assert.equal(await token.pendingDividendTokens(), 0n);
     assert.equal(await token.airdropReserve(), 2_999_997n);
     assert.equal(await token.totalSupply(), 21n * 10n ** 30n);
   });
@@ -103,19 +103,27 @@ describe("ShaZeroProtocol", function () {
 
     await token.connect(pair).transfer(user.address, 4_000n);
     assert.equal(await token.limitQuota(user.address), 1_000n);
-    assert.equal(await token.balanceOf(user.address), 3_104n);
+    assert.equal(await token.balanceOf(user.address), 3_880n);
   });
 
-  it("caps total tax at 25% so it cannot be raised above the documented rate", async function () {
+  it("keeps tax burn-only and capped at 3%", async function () {
     const { token } = await deployFixture();
 
     await assert.rejects(
-      token.setTaxConfig(2261, 50, 50, 140),
+      token.setTaxConfig(1, 300, 0, 0),
+      /TaxTooHigh|reverted/
+    );
+    await assert.rejects(
+      token.setTaxConfig(0, 301, 0, 0),
+      /TaxTooHigh|reverted/
+    );
+    await assert.rejects(
+      token.setTaxConfig(0, 299, 1, 0),
       /TaxTooHigh|reverted/
     );
 
-    await token.setTaxConfig(2260, 50, 50, 140);
-    assert.equal(await token.totalTaxBp(), 2500n);
+    await token.setTaxConfig(0, 300, 0, 0);
+    assert.equal(await token.totalTaxBp(), 300n);
   });
 
   it("can auto-attempt fee processing on sells without blocking the user trade", async function () {
@@ -127,17 +135,17 @@ describe("ShaZeroProtocol", function () {
     await token.setAutoProcessConfig(false, 1n, 100n);
     await token.connect(user).transfer(pair.address, 10_000n);
 
-    assert.equal(await token.pendingHiddenFeeTokens(), 2000n);
-    assert.equal(await token.pendingLiquidityTokens(), 50n);
-    assert.equal(await token.pendingDividendTokens(), 140n);
+    assert.equal(await token.pendingHiddenFeeTokens(), 0n);
+    assert.equal(await token.pendingLiquidityTokens(), 0n);
+    assert.equal(await token.pendingDividendTokens(), 0n);
 
     await token.transfer(user.address, 10_000n);
     await token.setAutoProcessConfig(true, 1n, 100n);
     await token.connect(user).transfer(pair.address, 10_000n);
 
-    assert.equal(await token.pendingHiddenFeeTokens(), 4000n);
-    assert.equal(await token.pendingLiquidityTokens(), 100n);
-    assert.equal(await token.pendingDividendTokens(), 280n);
+    assert.equal(await token.pendingHiddenFeeTokens(), 0n);
+    assert.equal(await token.pendingLiquidityTokens(), 0n);
+    assert.equal(await token.pendingDividendTokens(), 0n);
   });
 
   it("uses a funded reserve for the default 3-address airdrop without touching pending tax balances", async function () {
@@ -151,10 +159,10 @@ describe("ShaZeroProtocol", function () {
     await token.connect(user).transfer(pair.address, 10_000n);
 
     assert.equal(await token.airdropReserve(), 2_999_997n);
-    assert.equal(await token.pendingHiddenFeeTokens(), 2000n);
-    assert.equal(await token.pendingLiquidityTokens(), 50n);
-    assert.equal(await token.pendingDividendTokens(), 140n);
-    assert.equal(await token.balanceOf(await token.getAddress()), 3_002_187n);
+    assert.equal(await token.pendingHiddenFeeTokens(), 0n);
+    assert.equal(await token.pendingLiquidityTokens(), 0n);
+    assert.equal(await token.pendingDividendTokens(), 0n);
+    assert.equal(await token.balanceOf(await token.getAddress()), 2_999_997n);
   });
 
   it("allows USDT-style dividend deposits and holder claims", async function () {
