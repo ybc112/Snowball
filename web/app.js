@@ -238,6 +238,14 @@ function parsePositiveRawAmount(value, label) {
   return amount;
 }
 
+function maxBigInt(a, b) {
+  return a > b ? a : b;
+}
+
+function minBigInt(a, b) {
+  return a < b ? a : b;
+}
+
 function parseBps(value, label) {
   const num = Number(String(value || "0").trim());
   if (!Number.isFinite(num) || num < 0) throw new Error(`${label}不能小于 0`);
@@ -647,6 +655,56 @@ async function saveAirdropConfig() {
   }
 }
 
+async function buildAutoProcessDefaults(token) {
+  const totalSupply = await token.totalSupply();
+  let threshold = totalSupply / 10_000_000n;
+  if (threshold < 1_000n) threshold = 1_000n;
+  let maxAmount = totalSupply / 1_000_000n;
+  if (maxAmount < threshold) maxAmount = threshold;
+  return { threshold, maxAmount };
+}
+
+async function buildFeeProcessPlan(token) {
+  const [hidden, liquidity, dividend, maxAmount] = await Promise.all([
+    token.pendingHiddenFeeTokens(),
+    token.pendingLiquidityTokens(),
+    token.pendingDividendTokens(),
+    token.autoProcessMaxAmount()
+  ]);
+  const total = hidden + liquidity + dividend;
+  if (total === 0n) return { hidden: 0n, liquidity: 0n, dividend: 0n, total: 0n };
+
+  const limit = maxAmount > 0n ? minBigInt(total, maxAmount) : total;
+  let nextHidden = (hidden * limit) / total;
+  let nextLiquidity = (liquidity * limit) / total;
+  let nextDividend = limit - nextHidden - nextLiquidity;
+
+  if (nextLiquidity > 0n && nextLiquidity < 2n) {
+    nextHidden += nextLiquidity;
+    nextLiquidity = 0n;
+  }
+
+  return {
+    hidden: nextHidden,
+    liquidity: nextLiquidity,
+    dividend: nextDividend,
+    total
+  };
+}
+
+async function fillAutoProcessDefaults() {
+  await ensureSigner();
+  const form = $("[data-manage-form]");
+  const token = await getTokenFromForm("[data-manage-form]");
+  const { threshold, maxAmount } = await buildAutoProcessDefaults(token);
+  const plan = await buildFeeProcessPlan(token);
+  form.elements.autoThreshold.value = threshold.toString();
+  form.elements.autoMax.value = maxAmount.toString();
+  form.elements.processHidden.value = plan.hidden.toString();
+  form.elements.processOther.value = `${plan.liquidity.toString()},${plan.dividend.toString()}`;
+  setStatus("已按链上税池填入可处理数量。", "success");
+}
+
 async function saveAutoProcessConfig() {
   try {
     const form = $("[data-manage-form]");
@@ -680,6 +738,43 @@ async function processFees() {
   } catch (error) {
     console.error(error);
     setStatus(prettyError(error, "处理失败"), "error");
+  }
+}
+
+async function processFeesSmart() {
+  try {
+    const form = $("[data-manage-form]");
+    const token = await getTokenFromForm("[data-manage-form]");
+    let hidden = parseRawAmount(form.elements.processHidden.value, "process hidden amount");
+    const [liquidityRaw = "0", dividendRaw = "0"] = String(form.elements.processOther.value || "0,0").split(/[,\s]+/);
+    let liquidity = parseRawAmount(liquidityRaw, "process liquidity amount");
+    let dividend = parseRawAmount(dividendRaw, "process dividend amount");
+
+    if (hidden + liquidity + dividend === 0n) {
+      const plan = await buildFeeProcessPlan(token);
+      hidden = plan.hidden;
+      liquidity = plan.liquidity;
+      dividend = plan.dividend;
+      form.elements.processHidden.value = hidden.toString();
+      form.elements.processOther.value = `${liquidity.toString()},${dividend.toString()}`;
+    }
+
+    if (hidden + liquidity + dividend === 0n) {
+      throw new Error("税池里还没有可处理数量");
+    }
+
+    setStatus("正在处理税池，请确认钱包弹窗...");
+    const tx = await token.processAllFees(hidden, liquidity, dividend, 0, 0);
+    await tx.wait();
+    setStatus("税池已处理。", "success");
+  } catch (error) {
+    console.error(error);
+    const message = prettyError(error, "处理失败");
+    if (/INSUFFICIENT_OUTPUT_AMOUNT|InvalidAmount/i.test(message)) {
+      setStatus("处理数量太小或池子深度不够，请先点“填默认处理”后再处理。", "error");
+      return;
+    }
+    setStatus(message, "error");
   }
 }
 
@@ -1141,6 +1236,8 @@ async function handleQuickAction(event) {
       return;
     }
     if (button.hasAttribute("data-default-auto-process")) {
+      await fillAutoProcessDefaults();
+      return;
       setFieldValue("[data-manage-form] [name='autoThreshold']", "1000");
       setFieldValue("[data-manage-form] [name='autoMax']", "1000");
       setStatus("已填入默认自动处理参数。", "success");
@@ -1196,7 +1293,7 @@ function bindEvents() {
   $("[data-save-tax]").addEventListener("click", saveTaxConfig);
   $("[data-save-airdrop]").addEventListener("click", saveAirdropConfig);
   $("[data-save-auto-process]").addEventListener("click", saveAutoProcessConfig);
-  $("[data-process-fees]").addEventListener("click", processFees);
+  $("[data-process-fees]").addEventListener("click", processFeesSmart);
   $("[data-add-white]").addEventListener("click", () => updateWhitelist(true));
   $("[data-remove-white]").addEventListener("click", () => updateWhitelist(false));
   $("[data-save-limit]").addEventListener("click", saveLimitList);
