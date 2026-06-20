@@ -111,12 +111,14 @@ async function main() {
   const launchpad = loadLaunchpadAddress();
   const Launchpad = await hre.ethers.getContractFactory("SnowballLaunchpad");
   const iface = Launchpad.interface;
-  const currentBlock = await hre.ethers.provider.getBlockNumber();
   const confirmations = Number(process.env.AUTO_VERIFY_CONFIRMATIONS || "5");
   const pollSeconds = Number(process.env.AUTO_VERIFY_POLL_SECONDS || "20");
   const batchSize = Number(process.env.AUTO_VERIFY_BATCH_BLOCKS || "2000");
   const once = String(process.env.AUTO_VERIFY_ONCE || "").toLowerCase() === "true";
-  const startBlock = Number(process.env.AUTO_VERIFY_START_BLOCK || Math.max(0, currentBlock - 5000));
+  const configuredStartBlock = process.env.AUTO_VERIFY_START_BLOCK;
+  const startBlock = configuredStartBlock
+    ? Number(configuredStartBlock)
+    : Math.max(0, (await hre.ethers.provider.getBlockNumber()) - 5000);
   const statePath = stateFile(launchpad);
   const state = loadState(statePath, startBlock);
 
@@ -124,15 +126,19 @@ async function main() {
   console.log(`Next block: ${state.nextBlock}, confirmations: ${confirmations}`);
 
   while (true) {
-    const latest = await hre.ethers.provider.getBlockNumber();
-    const safeTo = latest > confirmations ? latest - confirmations : 0;
+    try {
+      const latest = await hre.ethers.provider.getBlockNumber();
+      const safeTo = latest > confirmations ? latest - confirmations : 0;
 
-    while (state.nextBlock <= safeTo) {
-      const fromBlock = state.nextBlock;
-      const toBlock = Math.min(safeTo, fromBlock + batchSize - 1);
-      await scanOnce({ launchpad, iface, state, statePath, fromBlock, toBlock });
-      state.nextBlock = toBlock + 1;
-      saveState(statePath, state);
+      while (state.nextBlock <= safeTo) {
+        const fromBlock = state.nextBlock;
+        const toBlock = Math.min(safeTo, fromBlock + batchSize - 1);
+        await scanOnce({ launchpad, iface, state, statePath, fromBlock, toBlock });
+        state.nextBlock = toBlock + 1;
+        saveState(statePath, state);
+      }
+    } catch (error) {
+      console.error(`[auto-verify] ${new Date().toISOString()} ${error?.message || error}`);
     }
 
     if (once) break;
