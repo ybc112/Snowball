@@ -22,13 +22,12 @@
 
       <section class="hero-band">
         <div class="hero-copy">
-          <span class="eyebrow">默认 BNB 底池 / 总税 15% / 0 精度</span>
+          <span class="eyebrow">默认 BNB 底池 / 0 精度 / 自定义手续费</span>
           <h1>创建多零 Token</h1>
           <p>填写名称、符号和总量即可创建，创建者钱包自动拥有管理权限；后续由创建者完成加池、白名单、限购名单和手动开盘。</p>
         </div>
-        <div class="metric-grid" aria-label="默认参数">
+        <div class="metric-grid" aria-label="发行参数">
           <div><span>创建费</span><strong>0.005 BNB</strong></div>
-          <div><span>默认税</span><strong>15%</strong></div>
           <div><span>底池</span><strong>WBNB</strong></div>
           <div><span>小数位</span><strong>0</strong></div>
         </div>
@@ -49,7 +48,7 @@
         <section class="page active" data-page="create">
           <div class="section-title">
             <h2>创建 Token</h2>
-            <p>默认用 Pancake WBNB 交易对，税收模板由工厂合约写入。</p>
+            <p>默认用 Pancake WBNB 交易对，手续费由创建者自行填写并写入合约。</p>
           </div>
 
           <form class="form-grid" data-create-form>
@@ -88,13 +87,27 @@
               <span>交易平台</span>
               <input type="text" value="Pancake WBNB" readonly />
             </label>
-            <label class="field">
-              <span>默认总税</span>
-              <input type="text" value="15%" readonly />
-            </label>
-            <div class="tax-summary wide">
-              <strong>创建时自动写入总税 15%</strong>
-              <span>买入和卖出统一按总税处理，默认进入营销地址，不需要额外填写手续费。</span>
+            <div class="fee-panel wide">
+              <div class="fee-panel-title">
+                <strong>买入手续费设置</strong>
+                <span>项目方自行填写</span>
+              </div>
+              <div class="fee-grid">
+                <label><span>流动性 %</span><input name="buyLiquidityTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+                <label><span>营销 %</span><input name="buyHiddenTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+                <label><span>分红 %</span><input name="buyDividendTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+                <label><span>销毁 %</span><input name="buyBurnTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+              </div>
+              <div class="fee-panel-title">
+                <strong>卖出手续费设置</strong>
+                <span>项目方自行填写</span>
+              </div>
+              <div class="fee-grid">
+                <label><span>流动性 %</span><input name="sellLiquidityTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+                <label><span>营销 %</span><input name="sellHiddenTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+                <label><span>分红 %</span><input name="sellDividendTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+                <label><span>销毁 %</span><input name="sellBurnTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+              </div>
             </div>
 
             <label class="field wide">
@@ -153,11 +166,27 @@
               <input name="airdropCount" type="number" min="0" max="10" value="3" />
             </label>
 
-            <div class="fee-grid wide">
-              <label><span>营销 %</span><input name="hiddenTax" type="number" min="0" max="15" step="0.01" value="15" /></label>
-              <label><span>销毁 %</span><input name="burnTax" type="number" min="0" max="15" step="0.01" value="0" /></label>
-              <label><span>回流 %</span><input name="liquidityTax" type="number" min="0" max="15" step="0.01" value="0" /></label>
-              <label><span>分红 %</span><input name="dividendTax" type="number" min="0" max="15" step="0.01" value="0" /></label>
+            <div class="fee-panel wide">
+              <div class="fee-panel-title">
+                <strong>买入手续费设置</strong>
+                <span>读取后显示链上配置</span>
+              </div>
+              <div class="fee-grid">
+                <label><span>流动性 %</span><input name="buyLiquidityTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+                <label><span>营销 %</span><input name="buyHiddenTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+                <label><span>分红 %</span><input name="buyDividendTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+                <label><span>销毁 %</span><input name="buyBurnTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+              </div>
+              <div class="fee-panel-title">
+                <strong>卖出手续费设置</strong>
+                <span>读取后显示链上配置</span>
+              </div>
+              <div class="fee-grid">
+                <label><span>流动性 %</span><input name="sellLiquidityTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+                <label><span>营销 %</span><input name="sellHiddenTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+                <label><span>分红 %</span><input name="sellDividendTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+                <label><span>销毁 %</span><input name="sellBurnTax" type="number" min="0" max="100" step="0.01" placeholder="自行填写" /></label>
+              </div>
             </div>
 
             <div class="fee-grid wide">

@@ -29,10 +29,16 @@ async function main() {
         parsed.args.hiddenFeeReceiver,
         parsed.args.rewardToken,
         [
-          parsed.args.hiddenTaxBp,
-          parsed.args.burnBp,
-          parsed.args.liquidityBp,
-          parsed.args.dividendBp
+          parsed.args.buyHiddenTaxBp,
+          parsed.args.buyBurnBp,
+          parsed.args.buyLiquidityBp,
+          parsed.args.buyDividendBp
+        ],
+        [
+          parsed.args.sellHiddenTaxBp,
+          parsed.args.sellBurnBp,
+          parsed.args.sellLiquidityBp,
+          parsed.args.sellDividendBp
         ],
         parsed.args.initialOwner,
         Array.from(parsed.args.ordinaryWhitelist),

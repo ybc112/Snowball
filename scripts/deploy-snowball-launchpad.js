@@ -31,12 +31,6 @@ async function main() {
     feeReceiver,
     createFee: (await launchpad.createFee()).toString(),
     defaultRewardToken: await launchpad.defaultRewardToken(),
-    defaultTaxConfig: {
-      hiddenTaxBp: (await launchpad.defaultTaxConfig()).hiddenTaxBp.toString(),
-      burnBp: (await launchpad.defaultTaxConfig()).burnBp.toString(),
-      liquidityBp: (await launchpad.defaultTaxConfig()).liquidityBp.toString(),
-      dividendBp: (await launchpad.defaultTaxConfig()).dividendBp.toString()
-    },
     deploymentTx: deploymentTx.hash,
     blockNumber: receipt.blockNumber,
     bscScan:

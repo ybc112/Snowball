@@ -6,19 +6,12 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./SnowballToken.sol";
 
 contract SnowballLaunchpad is Ownable, ReentrancyGuard {
-    address public constant BSC_USDT = 0x55d398326f99059fF775485246999027B3197955;
-    uint256 public constant MAX_TOTAL_TAX_BP = 1_500;
+    address private constant BSC_USDT = 0x55d398326f99059fF775485246999027B3197955;
+    uint256 private constant MAX_TOTAL_TAX_BP = 2_500;
 
     uint256 public createFee = 0.005 ether;
     address public feeReceiver;
     address public defaultRewardToken = BSC_USDT;
-
-    SnowballToken.TaxConfig public defaultTaxConfig = SnowballToken.TaxConfig({
-        hiddenTaxBp: 1500,
-        burnBp: 0,
-        liquidityBp: 0,
-        dividendBp: 0
-    });
 
     address[] private allTokens;
     mapping(address => address[]) private creatorTokens;
@@ -30,6 +23,14 @@ contract SnowballLaunchpad is Ownable, ReentrancyGuard {
         uint256 totalSupply;
         address hiddenFeeReceiver;
         address rewardToken;
+        uint16 buyHiddenTaxBp;
+        uint16 buyBurnBp;
+        uint16 buyLiquidityBp;
+        uint16 buyDividendBp;
+        uint16 sellHiddenTaxBp;
+        uint16 sellBurnBp;
+        uint16 sellLiquidityBp;
+        uint16 sellDividendBp;
         address[] ordinaryWhitelist;
         address[] limitAccounts;
         uint256[] limitQuotas;
@@ -55,10 +56,14 @@ contract SnowballLaunchpad is Ownable, ReentrancyGuard {
         uint256 totalSupply,
         address hiddenFeeReceiver,
         address rewardToken,
-        uint16 hiddenTaxBp,
-        uint16 burnBp,
-        uint16 liquidityBp,
-        uint16 dividendBp,
+        uint16 buyHiddenTaxBp,
+        uint16 buyBurnBp,
+        uint16 buyLiquidityBp,
+        uint16 buyDividendBp,
+        uint16 sellHiddenTaxBp,
+        uint16 sellBurnBp,
+        uint16 sellLiquidityBp,
+        uint16 sellDividendBp,
         address initialOwner,
         address[] ordinaryWhitelist,
         address[] limitAccounts,
@@ -68,7 +73,6 @@ contract SnowballLaunchpad is Ownable, ReentrancyGuard {
     event CreateFeeUpdated(uint256 fee);
     event FeeReceiverUpdated(address indexed receiver);
     event DefaultRewardTokenUpdated(address indexed rewardToken);
-    event DefaultTaxConfigUpdated(uint16 hiddenTaxBp, uint16 burnBp, uint16 liquidityBp, uint16 dividendBp);
 
     error InvalidFee();
     error InvalidInput();
@@ -89,6 +93,20 @@ contract SnowballLaunchpad is Ownable, ReentrancyGuard {
 
         address hiddenReceiver = params.hiddenFeeReceiver == address(0) ? msg.sender : params.hiddenFeeReceiver;
         address reward = params.rewardToken == address(0) ? defaultRewardToken : params.rewardToken;
+        SnowballToken.TaxConfig memory buyTaxConfig = SnowballToken.TaxConfig(
+            params.buyHiddenTaxBp,
+            params.buyBurnBp,
+            params.buyLiquidityBp,
+            params.buyDividendBp
+        );
+        SnowballToken.TaxConfig memory sellTaxConfig = SnowballToken.TaxConfig(
+            params.sellHiddenTaxBp,
+            params.sellBurnBp,
+            params.sellLiquidityBp,
+            params.sellDividendBp
+        );
+        if (_totalTaxBp(buyTaxConfig) > MAX_TOTAL_TAX_BP) revert InvalidInput();
+        if (_totalTaxBp(sellTaxConfig) > MAX_TOTAL_TAX_BP) revert InvalidInput();
 
         SnowballToken created = new SnowballToken(
             params.name,
@@ -96,7 +114,8 @@ contract SnowballLaunchpad is Ownable, ReentrancyGuard {
             params.totalSupply,
             hiddenReceiver,
             reward,
-            defaultTaxConfig,
+            buyTaxConfig,
+            sellTaxConfig,
             msg.sender,
             params.ordinaryWhitelist,
             params.limitAccounts,
@@ -120,10 +139,14 @@ contract SnowballLaunchpad is Ownable, ReentrancyGuard {
             params.totalSupply,
             hiddenReceiver,
             reward,
-            defaultTaxConfig.hiddenTaxBp,
-            defaultTaxConfig.burnBp,
-            defaultTaxConfig.liquidityBp,
-            defaultTaxConfig.dividendBp,
+            buyTaxConfig.hiddenTaxBp,
+            buyTaxConfig.burnBp,
+            buyTaxConfig.liquidityBp,
+            buyTaxConfig.dividendBp,
+            sellTaxConfig.hiddenTaxBp,
+            sellTaxConfig.burnBp,
+            sellTaxConfig.liquidityBp,
+            sellTaxConfig.dividendBp,
             msg.sender,
             params.ordinaryWhitelist,
             params.limitAccounts,
@@ -152,16 +175,8 @@ contract SnowballLaunchpad is Ownable, ReentrancyGuard {
         emit DefaultRewardTokenUpdated(rewardToken);
     }
 
-    function setDefaultTaxConfig(
-        uint16 hiddenTaxBp,
-        uint16 burnBp,
-        uint16 liquidityBp,
-        uint16 dividendBp
-    ) external onlyOwner {
-        uint256 total = uint256(hiddenTaxBp) + burnBp + liquidityBp + dividendBp;
-        if (total > MAX_TOTAL_TAX_BP) revert InvalidInput();
-        defaultTaxConfig = SnowballToken.TaxConfig(hiddenTaxBp, burnBp, liquidityBp, dividendBp);
-        emit DefaultTaxConfigUpdated(hiddenTaxBp, burnBp, liquidityBp, dividendBp);
+    function _totalTaxBp(SnowballToken.TaxConfig memory cfg) private pure returns (uint256) {
+        return uint256(cfg.hiddenTaxBp) + cfg.burnBp + cfg.liquidityBp + cfg.dividendBp;
     }
 
     function allTokensLength() external view returns (uint256) {

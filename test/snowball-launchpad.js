@@ -18,6 +18,14 @@ describe("SnowballLaunchpad", function () {
       totalSupply: 21n * 10n ** 30n,
       hiddenFeeReceiver: fixture.hiddenReceiver.address,
       rewardToken: ethers.ZeroAddress,
+      buyHiddenTaxBp: 300,
+      buyBurnBp: 50,
+      buyLiquidityBp: 50,
+      buyDividendBp: 0,
+      sellHiddenTaxBp: 400,
+      sellBurnBp: 50,
+      sellLiquidityBp: 50,
+      sellDividendBp: 0,
       ordinaryWhitelist: [fixture.ordinary.address],
       limitAccounts: [fixture.limited.address],
       limitQuotas: [5000n],
@@ -53,8 +61,9 @@ describe("SnowballLaunchpad", function () {
     assert.equal(await token.totalSupply(), 21n * 10n ** 30n);
     assert.equal(await token.balanceOf(fixture.creator.address), 21n * 10n ** 30n - initialAirdropReserve);
     assert.equal(await token.hiddenFeeReceiver(), fixture.hiddenReceiver.address);
-    assert.equal(await token.rewardToken(), await fixture.launchpad.BSC_USDT());
-    assert.equal(await token.totalTaxBp(), 1500n);
+    assert.equal(await token.rewardToken(), await fixture.launchpad.defaultRewardToken());
+    assert.equal(await token.buyTotalTaxBp(), 400n);
+    assert.equal(await token.sellTotalTaxBp(), 500n);
     assert.equal(await token.airdropCount(), 3n);
   });
 
@@ -91,7 +100,7 @@ describe("SnowballLaunchpad", function () {
     assert.equal(await token.tradingOpen(), true);
   });
 
-  it("applies the default 15% hidden tax template on DEX transfers", async function () {
+  it("applies creator tax settings on DEX transfers", async function () {
     const fixture = await deployFixture();
     const { token } = await createSnowballToken(fixture);
 
@@ -100,25 +109,38 @@ describe("SnowballLaunchpad", function () {
     await token.connect(fixture.creator).openTrading();
     await token.connect(fixture.buyer).transfer(fixture.pair.address, 10_000n);
 
-    assert.equal(await token.balanceOf(fixture.pair.address), 8500n);
-    assert.equal(await token.pendingHiddenFeeTokens(), 1500n);
-    assert.equal(await token.pendingLiquidityTokens(), 0n);
+    assert.equal(await token.balanceOf(fixture.pair.address), 9500n);
+    assert.equal(await token.pendingHiddenFeeTokens(), 400n);
+    assert.equal(await token.balanceOf(await token.DEAD()), 50n);
+    assert.equal(await token.pendingLiquidityTokens(), 50n);
     assert.equal(await token.pendingDividendTokens(), 0n);
   });
 
-  it("caps launchpad defaults at 15% total tax", async function () {
+  it("caps token tax settings at the contract total tax limit", async function () {
+    const fixture = await deployFixture();
+    const { token } = await createSnowballToken(fixture);
+
+    await assert.rejects(
+      token.connect(fixture.creator).setTradeTaxConfig(2501, 0, 0, 0, 0, 0, 0, 0),
+      /TaxTooHigh|reverted/
+    );
+
+    await token.connect(fixture.creator).setTradeTaxConfig(2400, 50, 50, 0, 100, 50, 50, 0);
+    const buyCfg = await token.buyTaxConfig();
+    const sellCfg = await token.sellTaxConfig();
+    assert.equal(buyCfg.hiddenTaxBp, 2400n);
+    assert.equal(buyCfg.burnBp, 50n);
+    assert.equal(buyCfg.liquidityBp, 50n);
+    assert.equal(buyCfg.dividendBp, 0n);
+    assert.equal(sellCfg.hiddenTaxBp, 100n);
+  });
+
+  it("rejects creator tax settings above the contract total tax limit", async function () {
     const fixture = await deployFixture();
 
     await assert.rejects(
-      fixture.launchpad.setDefaultTaxConfig(1501, 0, 0, 0),
+      createSnowballToken(fixture, { sellHiddenTaxBp: 2501, sellBurnBp: 0, sellLiquidityBp: 0, sellDividendBp: 0 }),
       /InvalidInput|reverted/
     );
-
-    await fixture.launchpad.setDefaultTaxConfig(1400, 50, 50, 0);
-    const cfg = await fixture.launchpad.defaultTaxConfig();
-    assert.equal(cfg.hiddenTaxBp, 1400n);
-    assert.equal(cfg.burnBp, 50n);
-    assert.equal(cfg.liquidityBp, 50n);
-    assert.equal(cfg.dividendBp, 0n);
   });
 });

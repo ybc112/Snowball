@@ -44,10 +44,16 @@ function buildConstructorArgs(eventArgs) {
     eventArgs.hiddenFeeReceiver,
     eventArgs.rewardToken,
     [
-      eventArgs.hiddenTaxBp,
-      eventArgs.burnBp,
-      eventArgs.liquidityBp,
-      eventArgs.dividendBp
+      eventArgs.buyHiddenTaxBp,
+      eventArgs.buyBurnBp,
+      eventArgs.buyLiquidityBp,
+      eventArgs.buyDividendBp
+    ],
+    [
+      eventArgs.sellHiddenTaxBp,
+      eventArgs.sellBurnBp,
+      eventArgs.sellLiquidityBp,
+      eventArgs.sellDividendBp
     ],
     eventArgs.initialOwner,
     Array.from(eventArgs.ordinaryWhitelist),

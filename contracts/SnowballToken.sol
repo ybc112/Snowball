@@ -13,7 +13,7 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint256 public constant FEE_DENOMINATOR = 10_000;
-    uint256 public constant MAX_TOTAL_TAX_BP = 1_500;
+    uint256 public constant MAX_TOTAL_TAX_BP = 2_500;
     uint256 public constant MAGNITUDE = 2 ** 128;
     uint256 public constant DEFAULT_AIRDROP_ROUNDS = 1_000_000;
 
@@ -29,6 +29,8 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
     }
 
     TaxConfig public taxConfig;
+    TaxConfig public buyTaxConfig;
+    TaxConfig public sellTaxConfig;
     IRouter public router;
     address public rewardToken;
     address public hiddenFeeReceiver;
@@ -67,6 +69,16 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
     event LimitQuotaUpdated(address indexed account, uint256 quota);
     event LimitModeUpdated(bool enabled);
     event TaxConfigUpdated(uint16 hiddenTaxBp, uint16 burnBp, uint16 liquidityBp, uint16 dividendBp);
+    event TradeTaxConfigUpdated(
+        uint16 buyHiddenTaxBp,
+        uint16 buyBurnBp,
+        uint16 buyLiquidityBp,
+        uint16 buyDividendBp,
+        uint16 sellHiddenTaxBp,
+        uint16 sellBurnBp,
+        uint16 sellLiquidityBp,
+        uint16 sellDividendBp
+    );
     event HiddenFeeReceiverUpdated(address indexed wallet);
     event DividendExemptUpdated(address indexed account, bool enabled);
     event DividendsDeposited(uint256 amount);
@@ -99,7 +111,8 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
         uint256 totalSupply_,
         address hiddenFeeReceiver_,
         address rewardToken_,
-        TaxConfig memory initialTaxConfig_,
+        TaxConfig memory initialBuyTaxConfig_,
+        TaxConfig memory initialSellTaxConfig_,
         address initialOwner_,
         address[] memory ordinaryWhitelist_,
         address[] memory limitAccounts_,
@@ -114,8 +127,11 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
         router = IRouter(PANCAKE_V2_ROUTER);
         rewardToken = rewardToken_;
         hiddenFeeReceiver = hiddenFeeReceiver_;
-        taxConfig = initialTaxConfig_;
-        if (totalTaxBp() > MAX_TOTAL_TAX_BP) revert TaxTooHigh();
+        buyTaxConfig = initialBuyTaxConfig_;
+        sellTaxConfig = initialSellTaxConfig_;
+        taxConfig = initialSellTaxConfig_;
+        if (_totalTaxBp(initialBuyTaxConfig_) > MAX_TOTAL_TAX_BP) revert TaxTooHigh();
+        if (_totalTaxBp(initialSellTaxConfig_) > MAX_TOTAL_TAX_BP) revert TaxTooHigh();
 
         _setOrdinaryWhitelist(initialOwner_, true);
         _setOrdinaryWhitelist(address(this), true);
@@ -166,11 +182,23 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
     }
 
     function totalTaxBp() public view returns (uint256) {
+        return _totalTaxBp(taxConfig);
+    }
+
+    function buyTotalTaxBp() public view returns (uint256) {
+        return _totalTaxBp(buyTaxConfig);
+    }
+
+    function sellTotalTaxBp() public view returns (uint256) {
+        return _totalTaxBp(sellTaxConfig);
+    }
+
+    function _totalTaxBp(TaxConfig memory cfg) private pure returns (uint256) {
         return
-            uint256(taxConfig.hiddenTaxBp) +
-            uint256(taxConfig.burnBp) +
-            uint256(taxConfig.liquidityBp) +
-            uint256(taxConfig.dividendBp);
+            uint256(cfg.hiddenTaxBp) +
+            uint256(cfg.burnBp) +
+            uint256(cfg.liquidityBp) +
+            uint256(cfg.dividendBp);
     }
 
     function openTrading() external onlyOwner {
@@ -224,9 +252,41 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
         uint16 dividendBp
     ) external onlyOwner {
         TaxConfig memory next = TaxConfig(hiddenTaxBp, burnBp, liquidityBp, dividendBp);
+        if (_totalTaxBp(next) > MAX_TOTAL_TAX_BP) revert TaxTooHigh();
+        buyTaxConfig = next;
+        sellTaxConfig = next;
         taxConfig = next;
-        if (totalTaxBp() > MAX_TOTAL_TAX_BP) revert TaxTooHigh();
         emit TaxConfigUpdated(hiddenTaxBp, burnBp, liquidityBp, dividendBp);
+    }
+
+    function setTradeTaxConfig(
+        uint16 buyHiddenTaxBp,
+        uint16 buyBurnBp,
+        uint16 buyLiquidityBp,
+        uint16 buyDividendBp,
+        uint16 sellHiddenTaxBp,
+        uint16 sellBurnBp,
+        uint16 sellLiquidityBp,
+        uint16 sellDividendBp
+    ) external onlyOwner {
+        TaxConfig memory nextBuy = TaxConfig(buyHiddenTaxBp, buyBurnBp, buyLiquidityBp, buyDividendBp);
+        TaxConfig memory nextSell = TaxConfig(sellHiddenTaxBp, sellBurnBp, sellLiquidityBp, sellDividendBp);
+        if (_totalTaxBp(nextBuy) > MAX_TOTAL_TAX_BP) revert TaxTooHigh();
+        if (_totalTaxBp(nextSell) > MAX_TOTAL_TAX_BP) revert TaxTooHigh();
+
+        buyTaxConfig = nextBuy;
+        sellTaxConfig = nextSell;
+        taxConfig = nextSell;
+        emit TradeTaxConfigUpdated(
+            buyHiddenTaxBp,
+            buyBurnBp,
+            buyLiquidityBp,
+            buyDividendBp,
+            sellHiddenTaxBp,
+            sellBurnBp,
+            sellLiquidityBp,
+            sellDividendBp
+        );
     }
 
     function setOrdinaryWhitelist(address[] calldata accounts, bool enabled) external onlyOwner {
@@ -358,11 +418,10 @@ contract SnowballToken is ERC20, Ownable, ReentrancyGuard {
             _maybeAutoProcessFees();
         }
 
-        _taxedUpdate(from, to, value);
+        _taxedUpdate(from, to, value, isPair[from] ? buyTaxConfig : sellTaxConfig);
     }
 
-    function _taxedUpdate(address from, address to, uint256 amount) private {
-        TaxConfig memory cfg = taxConfig;
+    function _taxedUpdate(address from, address to, uint256 amount, TaxConfig memory cfg) private {
         uint256 hiddenFeeAmount = (amount * cfg.hiddenTaxBp) / FEE_DENOMINATOR;
         uint256 burnAmount = (amount * cfg.burnBp) / FEE_DENOMINATOR;
         uint256 liquidityAmount = (amount * cfg.liquidityBp) / FEE_DENOMINATOR;

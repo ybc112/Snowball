@@ -13,6 +13,7 @@ const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
 const USDT = "0x55d398326f99059fF775485246999027B3197955";
 const DEAD = "0x000000000000000000000000000000000000dEaD";
 const ZERO = "0x0000000000000000000000000000000000000000";
+const MAX_TOTAL_TAX_BP = 2500;
 
 const ROUTER_ABI = [
   "function WETH() view returns (address)",
@@ -83,8 +84,13 @@ function parsePositiveRawAmount(value, label) {
 function parseBps(value, label) {
   const num = Number(String(value || "0").trim());
   if (!Number.isFinite(num) || num < 0) throw new Error(`${label}不能小于 0`);
-  if (num > 15) throw new Error(`${label}不能大于 15%`);
+  if (num > 100) throw new Error(`${label}不能大于 100%`);
   return Math.round(num * 100);
+}
+
+function validateTaxGroup(values, label) {
+  const total = values.reduce((sum, value) => sum + value, 0);
+  if (total > MAX_TOTAL_TAX_BP) throw new Error(`${label}手续费超过合约允许上限`);
 }
 
 function parseRatioBps(value, label) {
@@ -301,6 +307,16 @@ async function createToken(event) {
 
     const hiddenFeeReceiver = optionalAddress(form.elements.hiddenReceiver.value, account || ZERO);
     const rewardToken = optionalAddress(form.elements.rewardToken.value, USDT);
+    const buyHiddenTaxBp = parseBps(form.elements.buyHiddenTax.value, "买入营销");
+    const buyBurnBp = parseBps(form.elements.buyBurnTax.value, "买入销毁");
+    const buyLiquidityBp = parseBps(form.elements.buyLiquidityTax.value, "买入流动性");
+    const buyDividendBp = parseBps(form.elements.buyDividendTax.value, "买入分红");
+    const sellHiddenTaxBp = parseBps(form.elements.sellHiddenTax.value, "卖出营销");
+    const sellBurnBp = parseBps(form.elements.sellBurnTax.value, "卖出销毁");
+    const sellLiquidityBp = parseBps(form.elements.sellLiquidityTax.value, "卖出流动性");
+    const sellDividendBp = parseBps(form.elements.sellDividendTax.value, "卖出分红");
+    validateTaxGroup([buyHiddenTaxBp, buyBurnBp, buyLiquidityBp, buyDividendBp], "买入");
+    validateTaxGroup([sellHiddenTaxBp, sellBurnBp, sellLiquidityBp, sellDividendBp], "卖出");
     const ordinaryWhitelist = parseAddressList(form.elements.ordinaryWhitelist.value);
     const { accounts: limitAccounts, quotas: limitQuotas } = parseLimitList(form.elements.limitList.value);
     const createFee = await launchpad.createFee();
@@ -311,6 +327,14 @@ async function createToken(event) {
       totalSupply,
       hiddenFeeReceiver,
       rewardToken,
+      buyHiddenTaxBp,
+      buyBurnBp,
+      buyLiquidityBp,
+      buyDividendBp,
+      sellHiddenTaxBp,
+      sellBurnBp,
+      sellLiquidityBp,
+      sellDividendBp,
       ordinaryWhitelist,
       limitAccounts,
       limitQuotas,
@@ -351,13 +375,14 @@ async function readTokenInfo() {
   try {
     await ensureSigner();
     const token = await getTokenFromForm("[data-manage-form]");
-    const [name, symbol, totalSupply, tradingOpen, hiddenReceiver, cfg, airdropCount] = await Promise.all([
+    const [name, symbol, totalSupply, tradingOpen, hiddenReceiver, buyCfg, sellCfg, airdropCount] = await Promise.all([
       token.name(),
       token.symbol(),
       token.totalSupply(),
       token.tradingOpen(),
       token.hiddenFeeReceiver(),
-      token.taxConfig(),
+      token.buyTaxConfig(),
+      token.sellTaxConfig(),
       token.airdropCount()
     ]);
 
@@ -374,10 +399,14 @@ async function readTokenInfo() {
 
     const form = $("[data-manage-form]");
     form.elements.hiddenReceiver.value = hiddenReceiver;
-    form.elements.hiddenTax.value = bpsToPercent(cfg.hiddenTaxBp);
-    form.elements.burnTax.value = bpsToPercent(cfg.burnBp);
-    form.elements.liquidityTax.value = bpsToPercent(cfg.liquidityBp);
-    form.elements.dividendTax.value = bpsToPercent(cfg.dividendBp);
+    form.elements.buyHiddenTax.value = bpsToPercent(buyCfg.hiddenTaxBp);
+    form.elements.buyBurnTax.value = bpsToPercent(buyCfg.burnBp);
+    form.elements.buyLiquidityTax.value = bpsToPercent(buyCfg.liquidityBp);
+    form.elements.buyDividendTax.value = bpsToPercent(buyCfg.dividendBp);
+    form.elements.sellHiddenTax.value = bpsToPercent(sellCfg.hiddenTaxBp);
+    form.elements.sellBurnTax.value = bpsToPercent(sellCfg.burnBp);
+    form.elements.sellLiquidityTax.value = bpsToPercent(sellCfg.liquidityBp);
+    form.elements.sellDividendTax.value = bpsToPercent(sellCfg.dividendBp);
     form.elements.airdropCount.value = Number(airdropCount);
     form.elements.limitMode.checked = await token.limitModeEnabled();
 
@@ -407,14 +436,28 @@ async function saveTaxConfig() {
   try {
     const form = $("[data-manage-form]");
     const token = await getTokenFromForm("[data-manage-form]");
-    const hidden = parseBps(form.elements.hiddenTax.value, "营销");
-    const burn = parseBps(form.elements.burnTax.value, "销毁");
-    const liquidity = parseBps(form.elements.liquidityTax.value, "回流");
-    const dividend = parseBps(form.elements.dividendTax.value, "分红");
-    if (hidden + burn + liquidity + dividend > 1500) throw new Error("总税不能超过 15%");
+    const buyHidden = parseBps(form.elements.buyHiddenTax.value, "买入营销");
+    const buyBurn = parseBps(form.elements.buyBurnTax.value, "买入销毁");
+    const buyLiquidity = parseBps(form.elements.buyLiquidityTax.value, "买入流动性");
+    const buyDividend = parseBps(form.elements.buyDividendTax.value, "买入分红");
+    const sellHidden = parseBps(form.elements.sellHiddenTax.value, "卖出营销");
+    const sellBurn = parseBps(form.elements.sellBurnTax.value, "卖出销毁");
+    const sellLiquidity = parseBps(form.elements.sellLiquidityTax.value, "卖出流动性");
+    const sellDividend = parseBps(form.elements.sellDividendTax.value, "卖出分红");
+    validateTaxGroup([buyHidden, buyBurn, buyLiquidity, buyDividend], "买入");
+    validateTaxGroup([sellHidden, sellBurn, sellLiquidity, sellDividend], "卖出");
 
     setStatus("正在保存税收配置，请确认钱包弹窗...");
-    const tx = await token.setTaxConfig(hidden, burn, liquidity, dividend);
+    const tx = await token.setTradeTaxConfig(
+      buyHidden,
+      buyBurn,
+      buyLiquidity,
+      buyDividend,
+      sellHidden,
+      sellBurn,
+      sellLiquidity,
+      sellDividend
+    );
     await tx.wait();
     setStatus("税收配置已保存。", "success");
   } catch (error) {

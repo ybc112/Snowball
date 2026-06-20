@@ -327,6 +327,7 @@ textarea:focus {
 .action-row.wide,
 .info-grid.wide,
 .fee-grid.wide,
+.fee-panel.wide,
 .tax-summary.wide,
 .switch-card.wide {
   grid-column: 1 / -1;
@@ -399,6 +400,33 @@ textarea:focus {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+}
+
+.fee-panel {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #cfe7f5;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(241, 250, 255, 0.92), rgba(255, 255, 255, 0.98));
+  padding: 14px;
+}
+
+.fee-panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fee-panel-title strong {
+  color: #1d2b44;
+  font-size: 15px;
+}
+
+.fee-panel-title span {
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .fee-grid label,

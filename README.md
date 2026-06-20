@@ -9,7 +9,7 @@
 - `contracts/MintAddSaleFactory.sol`：加池子 Mint 预售工厂，创建费用默认 `0.005 BNB`。
 - `contracts/MintAddSale.sol`：单个 Mint 预售合约，支持白名单、白名单份额、每份价格、每份数量、总份数、单次/单钱包上限、BNB 加池比例、Token 加池比例和 LP 销毁。
 - 创建者就是 Token owner，后续白名单、限购、加池、开盘都由创建者钱包管理。
-- 默认 Pancake WBNB 底池，默认总税 `15%`。
+- 默认 Pancake WBNB 底池，买入/卖出手续费由创建者自行设置。
 - 普通白名单和限购名单分开，限购名单只控制买入额度。
 - 创建时会发出开源请求事件和完整构造参数事件，后台服务可监听后提交区块浏览器验证。
 
