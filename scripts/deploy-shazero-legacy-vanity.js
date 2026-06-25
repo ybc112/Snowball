@@ -8,6 +8,7 @@ const { keccak_256 } = require("@noble/hashes/sha3");
 const { ethers } = require("ethers");
 
 const CREATE2_FACTORY = "0x4e59b44847b379578588920cA78FbF26c0B4956C";
+const BSC_USDT = "0x55d398326f99059fF775485246999027B3197955";
 if (!isMainThread) {
   const result = findSalt(workerData);
   parentPort.postMessage(result);
@@ -31,18 +32,48 @@ async function main() {
   if (factoryCode === "0x") throw new Error("CREATE2 factory is not deployed on this network");
 
   const artifact = JSON.parse(
-    fs.readFileSync(path.join("artifacts", "contracts", "ShaZeroProtocol.sol", "ShaZeroProtocol.json"), "utf8")
+    fs.readFileSync(
+      path.join("artifacts", "contracts", "ShaZeroProtocolLegacy.sol", "ShaZeroProtocolLegacy.json"),
+      "utf8"
+    )
   );
-  const name = process.env.TOKEN_NAME || "Snowball";
-  const symbol = process.env.TOKEN_SYMBOL || "Snowball";
+  const name = process.env.TOKEN_NAME || "杀零协议";
+  const symbol = process.env.TOKEN_SYMBOL || "SHA0";
   const totalSupply = BigInt(process.env.TOTAL_SUPPLY || "21000000000000000000000000000000");
+  const hiddenFeeReceiver =
+    process.env.HIDDEN_FEE_RECEIVER ||
+    process.env.FEE_RECEIVER ||
+    process.env.FEE_RECIPIENT ||
+    process.env.MARKETING_WALLET ||
+    deployer.address;
+  const rewardToken = process.env.REWARD_TOKEN || BSC_USDT;
+  const hiddenTaxBp = Number(process.env.HIDDEN_TAX_BP || "80");
+  const burnBp = Number(process.env.BURN_BP || "80");
+  const liquidityBp = Number(process.env.LIQUIDITY_BP || "80");
+  const dividendBp = Number(process.env.DIVIDEND_BP || "160");
   const suffix = normalizeSuffix(process.env.VANITY_SUFFIX || "000000");
+
+  if (!ethers.isAddress(hiddenFeeReceiver || "")) throw new Error("Hidden fee receiver is missing or invalid");
+  if (!ethers.isAddress(rewardToken || "")) throw new Error("Reward token is missing or invalid");
+  for (const [bpName, value] of [["HIDDEN_TAX_BP", hiddenTaxBp], ["BURN_BP", burnBp], ["LIQUIDITY_BP", liquidityBp], ["DIVIDEND_BP", dividendBp]]) {
+    if (!Number.isInteger(value) || value < 0 || value > 2500) {
+      throw new Error(`${bpName} must be an integer between 0 and 2500`);
+    }
+  }
+  const totalTaxBp = hiddenTaxBp + burnBp + liquidityBp + dividendBp;
+  if (totalTaxBp > 2500) throw new Error(`Total tax bp ${totalTaxBp} exceeds 2500 (25%)`);
 
   const contractFactory = new ethers.ContractFactory(artifact.abi, artifact.bytecode, deployer);
   const deployTx = await contractFactory.getDeployTransaction(
     name,
     symbol,
     totalSupply,
+    hiddenFeeReceiver,
+    rewardToken,
+    hiddenTaxBp,
+    burnBp,
+    liquidityBp,
+    dividendBp,
     deployer.address
   );
   const initCode = ethers.getBytes(deployTx.data);
@@ -52,7 +83,11 @@ async function main() {
   console.log("Deployer:", deployer.address);
   console.log("Name:", name);
   console.log("Symbol:", symbol);
-  console.log("Burn tax bp: 300");
+  console.log("Hidden fee receiver:", hiddenFeeReceiver);
+  console.log("Reward token:", rewardToken);
+  console.log("Hidden tax bp:", hiddenTaxBp);
+  console.log("Burn/liquidity/dividend bp:", `${burnBp}/${liquidityBp}/${dividendBp}`);
+  console.log("Total tax bp:", `${totalTaxBp} (${(totalTaxBp / 100).toFixed(2)}%)`);
   console.log("Target suffix:", suffix);
 
   const vanity = await resolveSalt(CREATE2_FACTORY, initCodeHash, suffix);
@@ -88,6 +123,7 @@ async function main() {
   if (receipt.status !== 1) throw new Error("Deployment transaction failed");
 
   const token = new ethers.Contract(vanity.address, artifact.abi, deployer);
+  const cfg = await token.taxConfig();
   const record = {
     network: "bsc",
     chainId: 56,
@@ -98,9 +134,14 @@ async function main() {
     owner: await token.owner(),
     create2Factory: CREATE2_FACTORY,
     salt: vanity.salt,
+    hiddenFeeReceiver: await token.hiddenFeeReceiver(),
+    rewardToken: await token.rewardToken(),
     totalSupply: (await token.totalSupply()).toString(),
     totalTaxBp: (await token.totalTaxBp()).toString(),
-    burnTaxBp: (await token.burnTaxBp()).toString(),
+    hiddenTaxBp: cfg.hiddenTaxBp.toString(),
+    burnBp: cfg.burnBp.toString(),
+    liquidityBp: cfg.liquidityBp.toString(),
+    dividendBp: cfg.dividendBp.toString(),
     deploymentTx: tx.hash,
     blockNumber: receipt.blockNumber,
     gasUsed: receipt.gasUsed.toString(),
@@ -109,7 +150,7 @@ async function main() {
 
   fs.mkdirSync("deployments", { recursive: true });
   fs.writeFileSync(
-    path.join("deployments", "snowball-burn-only-vanity-bsc.json"),
+    path.join("deployments", "snowball-legacy-hidden-tax-vanity-bsc.json"),
     `${JSON.stringify(record, null, 2)}\n`,
     "utf8"
   );
@@ -118,7 +159,7 @@ async function main() {
   console.log("Owner:", record.owner);
   console.log("Total tax bp:", record.totalTaxBp);
   console.log("Trading open:", String(await token.tradingOpen()));
-  console.log("Deployment file updated: deployments/snowball-burn-only-vanity-bsc.json");
+  console.log("Deployment file updated: deployments/snowball-legacy-hidden-tax-vanity-bsc.json");
 }
 
 async function resolveSalt(factoryAddress, initCodeHash, suffix) {

@@ -1,0 +1,23 @@
+{
+  "network": "bsc",
+  "chainId": 56,
+  "token": "0xc51c4448f39347B670841019a18C489Fdf000000",
+  "name": "杀零协议",
+  "symbol": "杀零协议",
+  "deployer": "0x055fc4F2c70c4c750CFcB6175E7134a33c255a45",
+  "owner": "0x055fc4F2c70c4c750CFcB6175E7134a33c255a45",
+  "create2Factory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "salt": "0x07206d7cd1960da2a9506ba64d796a12310d764b5751900b0000000000052b29",
+  "hiddenFeeReceiver": "0x8Cdbe71f6A426FD80Ef51b14c52B8aA6ff6313cc",
+  "rewardToken": "0x55d398326f99059fF775485246999027B3197955",
+  "totalSupply": "9000000000000000000000000000000000",
+  "totalTaxBp": "400",
+  "hiddenTaxBp": "80",
+  "burnBp": "80",
+  "liquidityBp": "80",
+  "dividendBp": "160",
+  "deploymentTx": "0x42dde842325ec514e1cfbf3983a82b433fd5ee73d1845092af3226e955fe4c8c",
+  "blockNumber": 106255824,
+  "gasUsed": "3754770",
+  "bscScan": "https://bscscan.com/address/0xc51c4448f39347B670841019a18C489Fdf000000#code"
+}

@@ -1,0 +1,18 @@
+{
+  "network": "bsc",
+  "chainId": 56,
+  "token": "0x7177fABD9c2934dfD384B6B7B4Aa7C4bFe000000",
+  "name": "Snowball",
+  "symbol": "Snowball",
+  "deployer": "0xc324Fa989CA3d53641822E9514b97b5Dcdce1fcB",
+  "owner": "0xc324Fa989CA3d53641822E9514b97b5Dcdce1fcB",
+  "create2Factory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "salt": "0x070c4496157596ce6918e7693dce9abe318892429ba0b6a30000000000149d75",
+  "totalSupply": "21000000000000000000000000000000",
+  "totalTaxBp": "300",
+  "burnTaxBp": "300",
+  "deploymentTx": "0xce28ade0050d49cbe61b744becb43b8f8afd4f9cb4af5f340ab0f527d16c6561",
+  "blockNumber": 105333952,
+  "gasUsed": "1724761",
+  "bscScan": "https://bscscan.com/address/0x7177fABD9c2934dfD384B6B7B4Aa7C4bFe000000#code"
+}

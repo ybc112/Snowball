@@ -8,6 +8,10 @@ const MINT_SALE_ABI = ARTIFACTS.mintSale?.abi || [];
 const DEFAULT_DEPLOYMENT = ARTIFACTS.deployment || null;
 const MINT_SALE_DEPLOYMENT = ARTIFACTS.mintSaleDeployment || null;
 
+const STORAGE_KEY_TOKEN = "snowball_last_token";
+const STORAGE_KEY_PAIR = "snowball_last_pair";
+const STORAGE_KEY_SALE = "snowball_last_mint_sale";
+
 const PANCAKE_ROUTER = "0x10ED43C718714eb63d5aA57B78B54704E256024E";
 const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
 const USDT = "0x55d398326f99059fF775485246999027B3197955";
@@ -208,7 +212,33 @@ async function fillTokenBalance() {
 }
 
 function prettyError(error, fallback = "操作失败") {
-  return error?.shortMessage || error?.reason || error?.message || fallback;
+  if (!error) return fallback;
+  // ethers v6: revert reason 在 data 里，形如 "Error: WhitelistExceeded()"
+  // 或 shortMessage 给出更清晰的信息
+  const reason = error?.reason || error?.data?.message || error?.data?.reason;
+  if (reason && reason !== "execution reverted") return reason;
+  if (error?.shortMessage && error.shortMessage !== "execution reverted") return error.shortMessage;
+  if (error?.message && !error.message.includes("execution reverted")) return error.message;
+  // 尝试从 data 里解析自定义 error
+  if (error?.data && typeof error.data === "string" && error.data.startsWith("0x")) {
+    const sig = error.data.slice(0, 10);
+    // 常见自定义 error 签名
+    const knownErrors = {
+      "0x70b948da": "TokenBalanceNotEnough（合约 Token 不足）",
+      "0xe4507c92": "WhitelistExceeded（不在白名单或额度用完）",
+      "0x6a01ca6c": "SaleClosed（Mint 已关闭）",
+      "0xcf479364": "SoldOut（已售罄）",
+      "0xb240dc6b": "BuyLimitExceeded（超过单次限购）",
+      "0xb864b9e4": "WalletLimitExceeded（超过单钱包限购）",
+      "0xe6c4fb75": "InvalidAmount（数量无效）",
+      "0x5790aae8": "InvalidRatio（比例无效）",
+      "0x30cd7471": "SaleClosed()",
+      "0xe4507c92": "WhitelistExceeded()"
+    };
+    if (knownErrors[sig]) return knownErrors[sig];
+    return `合约执行失败 (${sig})`;
+  }
+  return fallback;
 }
 
 function requireAddress(value, label) {
@@ -317,6 +347,9 @@ function parseShareList(value, label = "白名单份额") {
 
 function syncTokenInputs(address) {
   lastTokenAddress = ethers.isAddress(address || "") ? ethers.getAddress(address) : String(address || "");
+  if (ethers.isAddress(address || "")) {
+    try { localStorage.setItem(STORAGE_KEY_TOKEN, ethers.getAddress(address)); } catch {}
+  }
   $$("[data-token-address]").forEach((input) => {
     input.value = address;
   });
@@ -336,6 +369,9 @@ function syncMintSaleFactoryInputs(address) {
 
 function syncMintSaleInputs(address) {
   lastMintSaleAddress = ethers.isAddress(address || "") ? ethers.getAddress(address) : String(address || "");
+  if (ethers.isAddress(address || "")) {
+    try { localStorage.setItem(STORAGE_KEY_SALE, ethers.getAddress(address)); } catch {}
+  }
   $$("[data-mint-sale-address]").forEach((input) => {
     input.value = address || "";
   });
@@ -1022,7 +1058,7 @@ async function readMintSale() {
   try {
     await ensureSigner();
     const sale = await getMintSaleContract();
-    const [name, price, tokensPerShare, totalShares, soldShares, bnbBp, tokenBp, open] = await Promise.all([
+    const [name, price, tokensPerShare, totalShares, soldShares, bnbBp, tokenBp, open, whitelistEnabled, whitelistTotal, whitelistSold, saleTokenAddr] = await Promise.all([
       sale.saleName(),
       sale.pricePerShare(),
       sale.tokensPerShare(),
@@ -1030,8 +1066,22 @@ async function readMintSale() {
       sale.soldShares(),
       sale.bnbLiquidityBp(),
       sale.tokenLiquidityBp(),
-      sale.saleOpen()
+      sale.saleOpen(),
+      sale.whitelistEnabled(),
+      sale.whitelistTotalShares(),
+      sale.whitelistSoldShares(),
+      sale.saleToken()
     ]);
+
+    // 读取合约 token 余额和用户配额
+    const token = new ethers.Contract(saleTokenAddr, ERC20_ABI, signer);
+    const [contractBalance, userBought, userQuota] = await Promise.all([
+      token.balanceOf(sale.target),
+      sale.boughtShares(account),
+      sale.whitelistQuota(account)
+    ]);
+    const requiredTotal = tokensPerShare * totalShares;
+    const balanceOk = contractBalance >= requiredTotal;
 
     const info = $$("[data-mint-sale-info] strong");
     info[0].textContent = name || "--";
@@ -1039,10 +1089,18 @@ async function readMintSale() {
     info[2].textContent = `${ethers.formatEther(price)} BNB / 份，${tokensPerShare.toString()} Token / 份`;
     info[3].textContent = `BNB ${Number(bnbBp) / 100}% / Token ${Number(tokenBp) / 100}%`;
 
+    // 显示合约状态提示
+    let warnings = [];
+    if (!balanceOk) warnings.push(`合约 Token 不足：${contractBalance.toString()} / 需要 ${requiredTotal.toString()}`);
+    if (whitelistEnabled) warnings.push(`白名单已开启：已售 ${whitelistSold.toString()} / ${whitelistTotal.toString()}，你的配额 ${userQuota.toString()}`);
+    if (!open) warnings.push("Mint 已关闭");
+    const warnText = warnings.length ? ` ⚠️ ${warnings.join("；")}` : "";
+    const userText = `（你已买 ${userBought.toString()} 份${whitelistEnabled ? `，配额剩余 ${userQuota.toString()}` : ""}）`;
+
     const buyForm = $("[data-mint-buy-form]");
     const shares = parsePositiveRawAmount(buyForm.elements.shares.value || "1", "购买份数");
     buyForm.elements.payablePreview.value = `${ethers.formatEther(price * shares)} BNB`;
-    setStatus("预售信息已读取。", "success");
+    setStatus(`预售信息已读取。${userText}${warnText}`, warnings.length ? "error" : "success");
   } catch (error) {
     console.error(error);
     setStatus(prettyError(error, "读取预售失败"), "error");
@@ -1393,10 +1451,24 @@ function boot() {
   if (MINT_SALE_DEPLOYMENT?.factory) {
     syncMintSaleFactoryInputs(MINT_SALE_DEPLOYMENT.factory);
   }
+  // 自动恢复上次保存的 token 地址（优先用 artifacts 里的）
+  const savedToken = DEFAULT_DEPLOYMENT?.token || safeLoadStorage(STORAGE_KEY_TOKEN);
+  if (savedToken) {
+    syncTokenInputs(savedToken);
+  }
+  // 自动恢复上次保存的预售合约地址
+  const savedSale = safeLoadStorage(STORAGE_KEY_SALE);
+  if (savedSale) {
+    syncMintSaleInputs(savedSale);
+  }
 
   bindEvents();
   switchPage("create");
   setStatus(DEFAULT_DEPLOYMENT?.launchpad ? "资源已加载，请连接钱包。" : "请先部署发射台工厂，或手动填入工厂地址。");
+}
+
+function safeLoadStorage(key) {
+  try { return localStorage.getItem(key) || ""; } catch { return ""; }
 }
 
 boot();

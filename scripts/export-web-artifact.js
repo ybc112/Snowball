@@ -29,6 +29,17 @@ const mintSaleDeployment =
   readOptionalJson(path.join(root, "deployments", "mint-add-sale-factory-bsc.json")) ||
   readOptionalJson(path.join(root, "deployments", "mint-add-sale-factory-bscTestnet.json"));
 
+// 合并最新的 token 部署地址到 deployment（用于前端自动填充）
+const shazeroLegacyDeployment =
+  readOptionalJson(path.join(root, "deployments", "snowball-legacy-hidden-tax-vanity-bsc.json")) ||
+  readOptionalJson(path.join(root, "deployments", "sha-zero-hidden-tax-bsc.json"));
+if (snowballDeployment && shazeroLegacyDeployment && shazeroLegacyDeployment.token) {
+  snowballDeployment.token = shazeroLegacyDeployment.token;
+  snowballDeployment.tokenName = shazeroLegacyDeployment.name || shazeroLegacyDeployment.tokenName;
+  snowballDeployment.tokenSymbol = shazeroLegacyDeployment.symbol || shazeroLegacyDeployment.tokenSymbol;
+  snowballDeployment.tokenDeploymentTx = shazeroLegacyDeployment.deploymentTx;
+}
+
 fs.mkdirSync(vendorDir, { recursive: true });
 fs.writeFileSync(
   path.join(webDir, "tokenzero-artifact.js"),

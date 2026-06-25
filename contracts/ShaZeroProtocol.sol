@@ -3,62 +3,29 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./base/interface/IRouter.sol";
 
-contract ShaZeroProtocol is ERC20, Ownable, ReentrancyGuard {
-    using SafeERC20 for IERC20;
-
+contract ShaZeroProtocol is ERC20, Ownable {
     uint256 public constant FEE_DENOMINATOR = 10_000;
-    uint256 public constant MAX_TOTAL_TAX_BP = 2_500;
-    uint256 public constant MAX_BURN_TAX_BP = 300;
-    uint256 public constant MAGNITUDE = 2 ** 128;
+    uint16 public constant MAX_BURN_TAX_BP = 300;
     uint256 public constant DEFAULT_AIRDROP_ROUNDS = 1_000_000;
 
     address public constant DEAD = 0x000000000000000000000000000000000000dEaD;
-    address public constant BSC_USDT = 0x55d398326f99059fF775485246999027B3197955;
     address public constant PANCAKE_V2_ROUTER = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
 
-    struct TaxConfig {
-        uint16 hiddenTaxBp;
-        uint16 burnBp;
-        uint16 liquidityBp;
-        uint16 dividendBp;
-    }
-
-    TaxConfig public taxConfig;
     IRouter public router;
-    address public rewardToken;
-    address public hiddenFeeReceiver;
-
     bool public tradingOpen;
     bool public limitModeEnabled;
-    bool public autoProcessEnabled = true;
-    bool public processingFees;
+    uint16 public burnTaxBp = 300;
     uint8 public airdropCount = 3;
     uint256 public airdropAmount = 1;
     uint256 public airdropReserve;
     uint160 private airdropNonce = 173;
 
-    uint256 public autoProcessThreshold;
-    uint256 public autoProcessMaxAmount;
-    uint256 public pendingHiddenFeeTokens;
-    uint256 public pendingLiquidityTokens;
-    uint256 public pendingDividendTokens;
-
     mapping(address => bool) public isPair;
     mapping(address => bool) public ordinaryWhitelist;
     mapping(address => bool) public taxExempt;
     mapping(address => uint256) public limitQuota;
-
-    mapping(address => bool) public dividendExempt;
-    uint256 public dividendSupply;
-    uint256 public magnifiedDividendPerShare;
-    mapping(address => int256) private magnifiedDividendCorrections;
-    mapping(address => uint256) public withdrawnDividends;
-    uint256 public totalDividendsDistributed;
 
     event TradingOpened(uint256 timestamp);
     event PairUpdated(address indexed pair, bool enabled);
@@ -66,21 +33,7 @@ contract ShaZeroProtocol is ERC20, Ownable, ReentrancyGuard {
     event TaxExemptUpdated(address indexed account, bool enabled);
     event LimitQuotaUpdated(address indexed account, uint256 quota);
     event LimitModeUpdated(bool enabled);
-    event TaxConfigUpdated(uint16 hiddenTaxBp, uint16 burnBp, uint16 liquidityBp, uint16 dividendBp);
-    event HiddenFeeReceiverUpdated(address indexed wallet);
-    event DividendExemptUpdated(address indexed account, bool enabled);
-    event DividendsDeposited(uint256 amount);
-    event DividendClaimed(address indexed account, uint256 amount);
-    event FeesProcessed(
-        uint256 hiddenFeeTokens,
-        uint256 liquidityTokens,
-        uint256 dividendTokens,
-        uint256 hiddenFeeBnbAmount,
-        uint256 rewardAmount
-    );
-    event AutoProcessConfigUpdated(bool enabled, uint256 threshold, uint256 maxAmount);
-    event AutoProcessAttempted(uint256 hiddenFeeTokens, uint256 liquidityTokens, uint256 dividendTokens, bool success);
-    event HiddenFeesProcessed(address indexed wallet, uint256 tokenAmount, uint256 bnbAmount);
+    event BurnTaxUpdated(uint16 burnTaxBp);
     event AirdropConfigUpdated(uint8 count, uint256 amount);
     event AirdropReserveFunded(uint256 amount);
 
@@ -90,76 +43,38 @@ contract ShaZeroProtocol is ERC20, Ownable, ReentrancyGuard {
     error InvalidAmount();
     error LimitQuotaExceeded();
     error PairChangeAfterOpen();
-    error InsufficientPendingTokens();
-    error DividendUnavailable();
 
     constructor(
         string memory name_,
         string memory symbol_,
         uint256 totalSupply_,
-        address hiddenFeeReceiver_,
-        address rewardToken_,
-        uint16 hiddenTaxBp_,
         address initialOwner_
     ) ERC20(name_, symbol_) Ownable(initialOwner_) {
-        if (hiddenFeeReceiver_ == address(0) || initialOwner_ == address(0)) revert ZeroAddress();
-        if (rewardToken_ == address(0)) rewardToken_ = BSC_USDT;
+        if (initialOwner_ == address(0)) revert ZeroAddress();
 
         router = IRouter(PANCAKE_V2_ROUTER);
-        rewardToken = rewardToken_;
-        hiddenFeeReceiver = hiddenFeeReceiver_;
-
-        if (hiddenTaxBp_ != 0) revert TaxTooHigh();
-        taxConfig = TaxConfig({
-            hiddenTaxBp: 0,
-            burnBp: 300,
-            liquidityBp: 0,
-            dividendBp: 0
-        });
-        if (totalTaxBp() > MAX_TOTAL_TAX_BP) revert TaxTooHigh();
 
         _setOrdinaryWhitelist(initialOwner_, true);
         _setOrdinaryWhitelist(address(this), true);
-        _setOrdinaryWhitelist(hiddenFeeReceiver_, true);
         _setTaxExempt(DEAD, true);
-
-        _setDividendExempt(address(0), true);
-        _setDividendExempt(address(this), true);
-        _setDividendExempt(DEAD, true);
-        _setDividendExempt(hiddenFeeReceiver_, true);
 
         uint256 initialAirdropReserve = uint256(airdropCount) * airdropAmount * DEFAULT_AIRDROP_ROUNDS;
         if (totalSupply_ > initialAirdropReserve) {
             airdropReserve = initialAirdropReserve;
-            _rawUpdate(address(0), address(this), initialAirdropReserve);
-            _rawUpdate(address(0), initialOwner_, totalSupply_ - initialAirdropReserve);
+            _update(address(0), address(this), initialAirdropReserve);
+            _update(address(0), initialOwner_, totalSupply_ - initialAirdropReserve);
             emit AirdropReserveFunded(initialAirdropReserve);
         } else {
-            _rawUpdate(address(0), initialOwner_, totalSupply_);
-        }
-
-        autoProcessThreshold = totalSupply_ / 10_000_000;
-        if (autoProcessThreshold < 1_000) {
-            autoProcessThreshold = 1_000;
-        }
-        autoProcessMaxAmount = totalSupply_ / 1_000_000;
-        if (autoProcessMaxAmount < autoProcessThreshold) {
-            autoProcessMaxAmount = autoProcessThreshold;
+            _update(address(0), initialOwner_, totalSupply_);
         }
     }
-
-    receive() external payable {}
 
     function decimals() public pure override returns (uint8) {
         return 0;
     }
 
     function totalTaxBp() public view returns (uint256) {
-        return
-            uint256(taxConfig.hiddenTaxBp) +
-            uint256(taxConfig.burnBp) +
-            uint256(taxConfig.liquidityBp) +
-            uint256(taxConfig.dividendBp);
+        return burnTaxBp;
     }
 
     function openTrading() external onlyOwner {
@@ -177,33 +92,13 @@ contract ShaZeroProtocol is ERC20, Ownable, ReentrancyGuard {
         if (tradingOpen) revert PairChangeAfterOpen();
         if (pair == address(0)) revert ZeroAddress();
         isPair[pair] = enabled;
-        _setDividendExempt(pair, enabled);
         emit PairUpdated(pair, enabled);
     }
 
-    function setHiddenFeeReceiver(address wallet) external onlyOwner {
-        if (wallet == address(0)) revert ZeroAddress();
-        address oldWallet = hiddenFeeReceiver;
-        hiddenFeeReceiver = wallet;
-        _setOrdinaryWhitelist(wallet, true);
-        _setDividendExempt(wallet, true);
-        if (oldWallet != owner()) {
-            _setDividendExempt(oldWallet, false);
-        }
-        emit HiddenFeeReceiverUpdated(wallet);
-    }
-
-    function setTaxConfig(
-        uint16 hiddenTaxBp,
-        uint16 burnBp,
-        uint16 liquidityBp,
-        uint16 dividendBp
-    ) external onlyOwner {
-        uint256 total = uint256(hiddenTaxBp) + burnBp + liquidityBp + dividendBp;
-        if (total > MAX_TOTAL_TAX_BP) revert TaxTooHigh();
-        if (hiddenTaxBp != 0 || burnBp > MAX_BURN_TAX_BP || liquidityBp != 0 || dividendBp != 0) revert TaxTooHigh();
-        taxConfig = TaxConfig(hiddenTaxBp, burnBp, liquidityBp, dividendBp);
-        emit TaxConfigUpdated(hiddenTaxBp, burnBp, liquidityBp, dividendBp);
+    function setBurnTax(uint16 burnTaxBp_) external onlyOwner {
+        if (burnTaxBp_ > MAX_BURN_TAX_BP) revert TaxTooHigh();
+        burnTaxBp = burnTaxBp_;
+        emit BurnTaxUpdated(burnTaxBp_);
     }
 
     function setOrdinaryWhitelist(address[] calldata accounts, bool enabled) external onlyOwner {
@@ -240,107 +135,14 @@ contract ShaZeroProtocol is ERC20, Ownable, ReentrancyGuard {
 
     function fundAirdropReserve(uint256 amount) external onlyOwner {
         if (amount == 0) revert InvalidAmount();
-        _transfer(msg.sender, address(this), amount);
+        transfer(address(this), amount);
         airdropReserve += amount;
         emit AirdropReserveFunded(amount);
     }
 
-    function setAutoProcessConfig(bool enabled, uint256 threshold, uint256 maxAmount) external onlyOwner {
-        if (enabled && threshold == 0) revert InvalidAmount();
-        if (enabled && maxAmount != 0 && maxAmount < threshold) revert InvalidAmount();
-        autoProcessEnabled = enabled;
-        autoProcessThreshold = threshold;
-        autoProcessMaxAmount = maxAmount;
-        emit AutoProcessConfigUpdated(enabled, threshold, maxAmount);
-    }
-
-    function setDividendExempt(address[] calldata accounts, bool enabled) external onlyOwner {
-        for (uint256 i = 0; i < accounts.length; i++) {
-            _setDividendExempt(accounts[i], enabled);
-        }
-    }
-
-    function depositDividends(uint256 amount) external nonReentrant {
-        if (amount == 0) revert InvalidAmount();
-        IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
-        _distributeDividends(amount);
-    }
-
-    function processFees(
-        uint256 liquidityTokenAmount,
-        uint256 dividendTokenAmount,
-        uint256 minRewardOut,
-        uint256 minBnbOut
-    ) external nonReentrant {
-        _processFeeBuckets(0, liquidityTokenAmount, dividendTokenAmount, minRewardOut, minBnbOut);
-    }
-
-    function processAllFees(
-        uint256 hiddenFeeTokenAmount,
-        uint256 liquidityTokenAmount,
-        uint256 dividendTokenAmount,
-        uint256 minRewardOut,
-        uint256 minBnbOut
-    ) external nonReentrant {
-        _processFeeBuckets(hiddenFeeTokenAmount, liquidityTokenAmount, dividendTokenAmount, minRewardOut, minBnbOut);
-    }
-
-    function _processFeeBuckets(
-        uint256 hiddenFeeTokenAmount,
-        uint256 liquidityTokenAmount,
-        uint256 dividendTokenAmount,
-        uint256 minRewardOut,
-        uint256 minBnbOut
-    ) private {
-        uint256 rewardBefore = IERC20(rewardToken).balanceOf(address(this));
-        uint256 hiddenFeeBnbAmount;
-
-        if (hiddenFeeTokenAmount > 0) {
-            hiddenFeeBnbAmount = _processHiddenFeeTokens(hiddenFeeTokenAmount, minBnbOut);
-        }
-
-        if (liquidityTokenAmount > 0) {
-            _processLiquidity(liquidityTokenAmount, minBnbOut);
-        }
-
-        if (dividendTokenAmount > 0) {
-            _processDividendTokens(dividendTokenAmount, minRewardOut);
-        }
-
-        uint256 rewardAmount = IERC20(rewardToken).balanceOf(address(this)) - rewardBefore;
-        if (rewardAmount > 0) {
-            _distributeDividends(rewardAmount);
-        }
-
-        emit FeesProcessed(hiddenFeeTokenAmount, liquidityTokenAmount, dividendTokenAmount, hiddenFeeBnbAmount, rewardAmount);
-    }
-
-    function claimDividend() external nonReentrant {
-        uint256 amount = withdrawableDividendOf(msg.sender);
-        if (amount == 0) revert DividendUnavailable();
-        withdrawnDividends[msg.sender] += amount;
-        IERC20(rewardToken).safeTransfer(msg.sender, amount);
-        emit DividendClaimed(msg.sender, amount);
-    }
-
-    function accumulativeDividendOf(address account) public view returns (uint256) {
-        if (dividendExempt[account]) return 0;
-        int256 corrected = int256(magnifiedDividendPerShare * balanceOf(account)) +
-            magnifiedDividendCorrections[account];
-        if (corrected <= 0) return 0;
-        return uint256(corrected) / MAGNITUDE;
-    }
-
-    function withdrawableDividendOf(address account) public view returns (uint256) {
-        uint256 accumulated = accumulativeDividendOf(account);
-        uint256 withdrawn = withdrawnDividends[account];
-        if (accumulated <= withdrawn) return 0;
-        return accumulated - withdrawn;
-    }
-
     function _update(address from, address to, uint256 value) internal override {
         if (from == address(0) || to == address(0) || value == 0) {
-            _rawUpdate(from, to, value);
+            super._update(from, to, value);
             return;
         }
 
@@ -355,204 +157,19 @@ contract ShaZeroProtocol is ERC20, Ownable, ReentrancyGuard {
             emit LimitQuotaUpdated(to, limitQuota[to]);
         }
 
-        if (!tradingOpen || !isDexTrade || taxExempt[from] || taxExempt[to]) {
-            _rawUpdate(from, to, value);
+        if (!tradingOpen || !isDexTrade || taxExempt[from] || taxExempt[to] || burnTaxBp == 0) {
+            super._update(from, to, value);
             return;
         }
 
-        if (isPair[to]) {
-            _maybeAutoProcessFees();
-        }
-
-        _taxedUpdate(from, to, value);
-    }
-
-    function _taxedUpdate(address from, address to, uint256 amount) private {
-        TaxConfig memory cfg = taxConfig;
-        uint256 hiddenFeeAmount = (amount * cfg.hiddenTaxBp) / FEE_DENOMINATOR;
-        uint256 burnAmount = (amount * cfg.burnBp) / FEE_DENOMINATOR;
-        uint256 liquidityAmount = (amount * cfg.liquidityBp) / FEE_DENOMINATOR;
-        uint256 dividendAmount = (amount * cfg.dividendBp) / FEE_DENOMINATOR;
-        uint256 feeAmount = hiddenFeeAmount + burnAmount + liquidityAmount + dividendAmount;
-        uint256 sendAmount = amount - feeAmount;
+        uint256 burnAmount = (value * burnTaxBp) / FEE_DENOMINATOR;
+        uint256 sendAmount = value - burnAmount;
 
         if (burnAmount > 0) {
-            _rawUpdate(from, DEAD, burnAmount);
+            super._update(from, DEAD, burnAmount);
         }
-        if (hiddenFeeAmount > 0 || liquidityAmount > 0 || dividendAmount > 0) {
-            uint256 collectAmount = hiddenFeeAmount + liquidityAmount + dividendAmount;
-            _rawUpdate(from, address(this), collectAmount);
-            pendingHiddenFeeTokens += hiddenFeeAmount;
-            pendingLiquidityTokens += liquidityAmount;
-            pendingDividendTokens += dividendAmount;
-        }
-        _rawUpdate(from, to, sendAmount);
+        super._update(from, to, sendAmount);
         _runAirdrop();
-    }
-
-    function _rawUpdate(address from, address to, uint256 value) private {
-        super._update(from, to, value);
-        _syncDividendBalance(from, to, value);
-    }
-
-    function _syncDividendBalance(address from, address to, uint256 value) private {
-        if (value == 0 || magnifiedDividendPerShare == 0) {
-            _syncDividendSupply(from, to, value);
-            return;
-        }
-
-        int256 correction = int256(magnifiedDividendPerShare * value);
-        bool fromExcluded = from == address(0) || dividendExempt[from];
-        bool toExcluded = to == address(0) || dividendExempt[to];
-
-        if (!fromExcluded) {
-            magnifiedDividendCorrections[from] += correction;
-        }
-        if (!toExcluded) {
-            magnifiedDividendCorrections[to] -= correction;
-        }
-
-        _syncDividendSupply(from, to, value);
-    }
-
-    function _syncDividendSupply(address from, address to, uint256 value) private {
-        if (value == 0) return;
-        bool fromExcluded = from == address(0) || dividendExempt[from];
-        bool toExcluded = to == address(0) || dividendExempt[to];
-
-        if (fromExcluded && !toExcluded) {
-            dividendSupply += value;
-        } else if (!fromExcluded && toExcluded) {
-            dividendSupply -= value;
-        }
-    }
-
-    function _distributeDividends(uint256 amount) private {
-        if (dividendSupply == 0) revert DividendUnavailable();
-        magnifiedDividendPerShare += (amount * MAGNITUDE) / dividendSupply;
-        totalDividendsDistributed += amount;
-        emit DividendsDeposited(amount);
-    }
-
-    function _maybeAutoProcessFees() private {
-        if (!autoProcessEnabled || processingFees || autoProcessThreshold == 0) {
-            return;
-        }
-
-        uint256 pendingTotal = pendingHiddenFeeTokens + pendingLiquidityTokens + pendingDividendTokens;
-        if (pendingTotal < autoProcessThreshold) {
-            return;
-        }
-
-        uint256 processTotal = pendingTotal;
-        if (autoProcessMaxAmount != 0 && processTotal > autoProcessMaxAmount) {
-            processTotal = autoProcessMaxAmount;
-        }
-
-        uint256 hiddenFeeAmount = (pendingHiddenFeeTokens * processTotal) / pendingTotal;
-        uint256 liquidityAmount = (pendingLiquidityTokens * processTotal) / pendingTotal;
-        uint256 dividendAmount = processTotal - hiddenFeeAmount - liquidityAmount;
-
-        if (liquidityAmount > 0 && liquidityAmount < 2) {
-            hiddenFeeAmount += liquidityAmount;
-            liquidityAmount = 0;
-        }
-        if (hiddenFeeAmount == 0 && liquidityAmount == 0 && dividendAmount == 0) {
-            return;
-        }
-
-        processingFees = true;
-        try this.processAllFees(hiddenFeeAmount, liquidityAmount, dividendAmount, 0, 0) {
-            emit AutoProcessAttempted(hiddenFeeAmount, liquidityAmount, dividendAmount, true);
-        } catch {
-            emit AutoProcessAttempted(hiddenFeeAmount, liquidityAmount, dividendAmount, false);
-        }
-        processingFees = false;
-    }
-
-    function _processHiddenFeeTokens(uint256 tokenAmount, uint256 minBnbOut) private returns (uint256 bnbAmount) {
-        if (tokenAmount > pendingHiddenFeeTokens) revert InsufficientPendingTokens();
-        pendingHiddenFeeTokens -= tokenAmount;
-
-        uint256 bnbBefore = address(this).balance;
-        _approve(address(this), address(router), tokenAmount);
-
-        address[] memory path = new address[](2);
-        path[0] = address(this);
-        path[1] = router.WETH();
-
-        router.swapExactTokensForETHSupportingFeeOnTransferTokens(
-            tokenAmount,
-            minBnbOut,
-            path,
-            address(this),
-            block.timestamp
-        );
-
-        bnbAmount = address(this).balance - bnbBefore;
-        if (bnbAmount == 0) revert InvalidAmount();
-
-        (bool success, ) = payable(hiddenFeeReceiver).call{value: bnbAmount}("");
-        require(success, "hidden fee transfer failed");
-
-        emit HiddenFeesProcessed(hiddenFeeReceiver, tokenAmount, bnbAmount);
-    }
-
-    function _processLiquidity(uint256 tokenAmount, uint256 minBnbOut) private {
-        if (tokenAmount > pendingLiquidityTokens) revert InsufficientPendingTokens();
-        if (tokenAmount < 2) revert InvalidAmount();
-        pendingLiquidityTokens -= tokenAmount;
-
-        uint256 half = tokenAmount / 2;
-        uint256 otherHalf = tokenAmount - half;
-        uint256 bnbBefore = address(this).balance;
-
-        _approve(address(this), address(router), tokenAmount);
-        address[] memory path = new address[](2);
-        path[0] = address(this);
-        path[1] = router.WETH();
-        router.swapExactTokensForETHSupportingFeeOnTransferTokens(
-            half,
-            minBnbOut,
-            path,
-            address(this),
-            block.timestamp
-        );
-
-        uint256 bnbAmount = address(this).balance - bnbBefore;
-        if (bnbAmount == 0) revert InvalidAmount();
-
-        (uint256 amountToken, , ) = router.addLiquidityETH{value: bnbAmount}(
-            address(this),
-            otherHalf,
-            0,
-            0,
-            DEAD,
-            block.timestamp
-        );
-
-        if (otherHalf > amountToken) {
-            pendingLiquidityTokens += otherHalf - amountToken;
-        }
-    }
-
-    function _processDividendTokens(uint256 tokenAmount, uint256 minRewardOut) private {
-        if (tokenAmount > pendingDividendTokens) revert InsufficientPendingTokens();
-        pendingDividendTokens -= tokenAmount;
-
-        _approve(address(this), address(router), tokenAmount);
-        address[] memory path = new address[](3);
-        path[0] = address(this);
-        path[1] = router.WETH();
-        path[2] = rewardToken;
-
-        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
-            tokenAmount,
-            minRewardOut,
-            path,
-            address(this),
-            block.timestamp
-        );
     }
 
     function _runAirdrop() private {
@@ -565,7 +182,7 @@ contract ShaZeroProtocol is ERC20, Ownable, ReentrancyGuard {
         for (uint256 i = 0; i < airdropCount; i++) {
             address recipient = address(uint160(uint256(keccak256(abi.encodePacked(airdropNonce, i, block.number)))));
             airdropNonce += 1;
-            _rawUpdate(address(this), recipient, airdropAmount);
+            super._update(address(this), recipient, airdropAmount);
         }
     }
 
@@ -581,24 +198,5 @@ contract ShaZeroProtocol is ERC20, Ownable, ReentrancyGuard {
         if (account == address(0)) revert ZeroAddress();
         taxExempt[account] = enabled;
         emit TaxExemptUpdated(account, enabled);
-    }
-
-    function _setDividendExempt(address account, bool enabled) private {
-        if (dividendExempt[account] == enabled) return;
-        uint256 balance = balanceOf(account);
-        dividendExempt[account] = enabled;
-
-        if (balance > 0) {
-            int256 correction = int256(magnifiedDividendPerShare * balance);
-            if (enabled) {
-                dividendSupply -= balance;
-                magnifiedDividendCorrections[account] += correction;
-            } else {
-                dividendSupply += balance;
-                magnifiedDividendCorrections[account] -= correction;
-            }
-        }
-
-        emit DividendExemptUpdated(account, enabled);
     }
 }
