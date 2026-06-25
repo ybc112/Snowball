@@ -639,7 +639,8 @@ textarea:focus {
   color: var(--danger);
 }
 
-.mint-buy-box {
+.mint-buy-box,
+.mint-admin-box {
   margin-top: 22px;
 }
 

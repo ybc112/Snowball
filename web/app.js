@@ -412,6 +412,13 @@ async function getMintSaleContract() {
   return new ethers.Contract(saleAddress, MINT_SALE_ABI, signer);
 }
 
+async function getMintSaleAdminContract() {
+  await ensureSigner();
+  const input = $("[data-mint-sale-admin-form] [name='sale']");
+  const saleAddress = requireAddress(input.value, "预售合约");
+  return new ethers.Contract(saleAddress, MINT_SALE_ABI, signer);
+}
+
 async function getTokenFromForm(rootSelector) {
   await ensureSigner();
   const input = $(`${rootSelector} [name='token']`);
@@ -1066,6 +1073,62 @@ async function buyMintSale(event) {
   }
 }
 
+async function saveMintWhitelistConfig() {
+  try {
+    await ensureSigner();
+    await ensureBscNetwork();
+    const form = $("[data-mint-sale-admin-form]");
+    const sale = await getMintSaleAdminContract();
+    const enabled = form.elements.whitelistEnabled.checked;
+    const totalShares = parseRawAmount(form.elements.whitelistTotalShares.value || "0", "白名单总份数");
+
+    setStatus("正在保存 Mint 白名单开关，请确认钱包弹窗...");
+    const tx = await sale.setWhitelistConfig(enabled, totalShares);
+    await tx.wait();
+    setStatus(enabled ? "Mint 白名单已开启。" : "Mint 白名单已关闭。", "success");
+    await readMintSale().catch(() => {});
+  } catch (error) {
+    console.error(error);
+    setStatus(prettyError(error, "保存 Mint 白名单失败"), "error");
+  }
+}
+
+async function saveMintWhitelistQuota() {
+  try {
+    await ensureSigner();
+    await ensureBscNetwork();
+    const form = $("[data-mint-sale-admin-form]");
+    const sale = await getMintSaleAdminContract();
+    const { accounts, quotas } = parseShareList(form.elements.whitelistList.value, "Mint 白名单份额");
+    if (!accounts.length) throw new Error("请填写 Mint 白名单地址和份额");
+
+    setStatus("正在保存 Mint 白名单份额，请确认钱包弹窗...");
+    const tx = await sale.setWhitelistQuota(accounts, quotas);
+    await tx.wait();
+    setStatus("Mint 白名单份额已保存。", "success");
+  } catch (error) {
+    console.error(error);
+    setStatus(prettyError(error, "保存 Mint 白名单份额失败"), "error");
+  }
+}
+
+async function setMintSaleOpen(open) {
+  try {
+    await ensureSigner();
+    await ensureBscNetwork();
+    const sale = await getMintSaleAdminContract();
+
+    setStatus(open ? "正在开放 Mint，请确认钱包弹窗..." : "正在关闭 Mint，请确认钱包弹窗...");
+    const tx = await sale.setSaleOpen(open);
+    await tx.wait();
+    setStatus(open ? "Mint 已开放。" : "Mint 已关闭。", "success");
+    await readMintSale().catch(() => {});
+  } catch (error) {
+    console.error(error);
+    setStatus(prettyError(error, open ? "开放 Mint 失败" : "关闭 Mint 失败"), "error");
+  }
+}
+
 function switchPage(pageName) {
   $$("[data-page]").forEach((page) => page.classList.toggle("active", page.dataset.page === pageName));
   const menu = $("[data-page-menu]");
@@ -1305,6 +1368,10 @@ function bindEvents() {
   });
   $("[data-approve-mint-sale-token]").addEventListener("click", approveMintSaleToken);
   $("[data-read-mint-sale]").addEventListener("click", readMintSale);
+  $("[data-save-mint-whitelist-config]").addEventListener("click", saveMintWhitelistConfig);
+  $("[data-save-mint-whitelist-quota]").addEventListener("click", saveMintWhitelistQuota);
+  $("[data-open-mint-sale]").addEventListener("click", () => setMintSaleOpen(true));
+  $("[data-close-mint-sale]").addEventListener("click", () => setMintSaleOpen(false));
 
   $$("[data-launchpad-address]").forEach((input) => input.addEventListener("change", refreshCreateFee));
   $$("[data-mint-sale-factory-address]").forEach((input) => input.addEventListener("change", () => refreshMintSaleRequired().catch(() => {})));

@@ -511,6 +511,44 @@
               <button class="primary-button" type="submit">立即 Mint</button>
             </div>
           </form>
+
+          <form class="form-grid mint-admin-box" data-mint-sale-admin-form>
+            <div class="section-title wide compact-title">
+              <h2>预售管理</h2>
+              <p>项目方创建后在这里加白名单、调整份额和打开/关闭 Mint。</p>
+            </div>
+            <label class="field wide">
+              <span>预售合约</span>
+              <input name="sale" data-mint-sale-address type="text" placeholder="填入 Mint 预售合约地址" />
+            </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-copy-field="[data-mint-sale-admin-form] [name='sale']" data-copy-label="预售合约">复制预售</button>
+              <button class="ghost-button mini-button" type="button" data-paste-field="[data-mint-sale-admin-form] [name='sale']" data-paste-label="预售合约">粘贴预售</button>
+              <button class="ghost-button mini-button" type="button" data-open-field="[data-mint-sale-admin-form] [name='sale']">打开预售</button>
+            </div>
+            <label class="switch-card wide">
+              <input name="whitelistEnabled" type="checkbox" />
+              <span>开启白名单 Mint</span>
+            </label>
+            <label class="field wide">
+              <span>白名单总份数</span>
+              <input name="whitelistTotalShares" type="text" inputmode="numeric" value="100" />
+            </label>
+            <label class="field wide">
+              <span>白名单份额</span>
+              <textarea name="whitelistList" rows="4" placeholder="格式：地址,份额&#10;0xabc...,10"></textarea>
+            </label>
+            <div class="action-row wide quick-actions">
+              <button class="ghost-button mini-button" type="button" data-current-wallet-quota="[data-mint-sale-admin-form] [name='whitelistList']">当前钱包份额</button>
+              <button class="ghost-button mini-button" type="button" data-paste-field="[data-mint-sale-admin-form] [name='whitelistList']" data-paste-label="Mint 白名单">粘贴白名单</button>
+              <button class="secondary-button" type="button" data-save-mint-whitelist-config>保存白名单开关</button>
+              <button class="secondary-button" type="button" data-save-mint-whitelist-quota>保存白名单份额</button>
+            </div>
+            <div class="action-row wide">
+              <button class="primary-button" type="button" data-open-mint-sale>开放 Mint</button>
+              <button class="danger-button" type="button" data-close-mint-sale>关闭 Mint</button>
+            </div>
+          </form>
         </section>
 
         <section class="page" data-page="verify">
