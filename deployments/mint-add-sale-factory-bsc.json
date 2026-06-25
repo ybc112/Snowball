@@ -1,0 +1,11 @@
+{
+  "network": "bsc",
+  "chainId": 56,
+  "factory": "0x6dce9C29AB033d2eE8AFACfe73D7b014CA04155A",
+  "deployer": "0x055fc4F2c70c4c750CFcB6175E7134a33c255a45",
+  "feeReceiver": "0x055fc4F2c70c4c750CFcB6175E7134a33c255a45",
+  "createFee": "5000000000000000",
+  "deploymentTx": "0x8320e52ca6aa6adbb765b5f522c449fad1a9de7a1576570a387d7a75c84d6691",
+  "blockNumber": 106284236,
+  "bscScan": "https://bscscan.com/address/0x6dce9C29AB033d2eE8AFACfe73D7b014CA04155A#code"
+}
